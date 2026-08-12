@@ -98,6 +98,47 @@ export async function incrementGamePlay(gameType: 'spin' | 'snakes' | 'board' | 
   return localIncrementGamePlay(gameType, scoreGained);
 }
 
+export interface GameContentResponse {
+  id: string;
+  identifier: string;
+  title: string;
+  description: any;
+  question: string;
+  options: string[];
+}
+
+export interface GameVerifyResponse {
+  isCorrect: boolean;
+  correctAnswerIdx: number;
+  pointsAwarded: number;
+  isFirstCorrect: boolean;
+  explanation: string;
+  progress: UserProgress;
+}
+
+export async function getGameContent(gameType: 'snakes' | 'board' | 'flashcards', lang: string = 'en'): Promise<GameContentResponse[] | null> {
+  return await fetchJson<GameContentResponse[]>(`/api/games/content?gameType=${gameType}&lang=${lang}`);
+}
+
+export async function verifyGameAnswer(gameType: 'spin' | 'snakes' | 'board' | 'flashcards', identifier: string, chosenOptionIndex: number): Promise<GameVerifyResponse | null> {
+  try {
+    const res = await fetch('/api/profile/game/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ gameType, identifier, chosenOptionIndex })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (error) {
+    console.error("verifyGameAnswer error:", error);
+  }
+  return null;
+}
+
+
 export interface FeedbackSubmission {
   rating: number;
   category: string;

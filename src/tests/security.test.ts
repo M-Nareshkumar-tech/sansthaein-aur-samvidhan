@@ -185,11 +185,10 @@ describe('Security & Data Integrity Pipeline Tests', () => {
     });
   });
 
-  describe('Game Session Score Verification', () => {
-    it('should reject impossible score values exceeding the cap', async () => {
+  describe('Game Session Score Verification (Deprecated)', () => {
+    it('should return 410 Gone for any post to profile/game', async () => {
       vi.mocked(getAuthorizedUser).mockResolvedValue({ errorResponse: null, user: mockUser });
 
-      // Client sends spin score = 500 (max cap is 50)
       const req = new Request('http://localhost/api/profile/game', {
         method: 'POST',
         body: JSON.stringify({ gameType: 'spin', scoreGained: 500 })
@@ -198,29 +197,8 @@ describe('Security & Data Integrity Pipeline Tests', () => {
       const res = await gameHandler(req);
       const data = await res.json();
 
-      expect(res.status).toBe(400);
-      expect(data.error).toContain('Impossible score');
-    });
-
-    it('should block game results submitted faster than min duration cooldown thresholds', async () => {
-      vi.mocked(getAuthorizedUser).mockResolvedValue({ errorResponse: null, user: mockUser });
-      
-      // Last game play was logged 1 second ago (violates 20s minimum snakes cooldown)
-      vi.mocked(prisma.gameSession.findFirst).mockResolvedValue({
-        id: 'session-1',
-        createdAt: new Date(Date.now() - 1000)
-      } as any);
-
-      const req = new Request('http://localhost/api/profile/game', {
-        method: 'POST',
-        body: JSON.stringify({ gameType: 'snakes', scoreGained: 150 })
-      });
-
-      const res = await gameHandler(req);
-      const data = await res.json();
-
-      expect(res.status).toBe(429);
-      expect(data.error).toContain('Rate limit');
+      expect(res.status).toBe(410);
+      expect(data.error).toContain('deprecated');
     });
   });
 

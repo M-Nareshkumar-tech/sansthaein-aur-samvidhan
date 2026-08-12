@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { incrementGamePlay } from '@/lib/services';
+import { incrementGamePlay, getGameContent, verifyGameAnswer } from '@/lib/services';
 import { useI18n } from '@/hooks/useI18n';
 import { 
   ArrowLeft, 
@@ -129,15 +129,57 @@ export default function FlashcardsGame() {
   const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [scoreEarned, setScoreEarned] = useState(0);
+  
+  const [cards, setCards] = useState<Flashcard[]>(CARDS);
+  const [loadingContent, setLoadingContent] = useState(false);
 
-  const activeCard = CARDS[currentIndex];
+  useEffect(() => {
+    const loadContent = async () => {
+      setLoadingContent(true);
+      try {
+        const data = await getGameContent('flashcards', language);
+        if (data && data.length > 0) {
+          const list = CARDS.map((c, idx) => {
+            const dbItem = data.find(item => item.identifier === `fc_${idx + 1}`);
+            if (dbItem) {
+              const comp = dbItem.description;
+              return {
+                ...c,
+                topic: dbItem.title,
+                unionTitle: comp.unionTitle,
+                unionDesc: comp.unionDesc,
+                stateTitle: comp.stateTitle,
+                stateDesc: comp.stateDesc,
+                comparisonKey: comp.comparisonKey,
+                trivia: {
+                  question: dbItem.question,
+                  options: dbItem.options,
+                  answerIndex: -1, // Hidden
+                  explanation: "" // Loaded on verification
+                }
+              };
+            }
+            return c;
+          });
+          setCards(list);
+        }
+      } catch (e) {
+        console.error("Failed to load flashcards dynamically", e);
+      } finally {
+        setLoadingContent(false);
+      }
+    };
+    loadContent();
+  }, [language]);
+
+  const activeCard = cards[currentIndex];
 
   const handleNext = () => {
     setFlipped(false);
     setTriviaStarted(false);
     setQuizAnswer(null);
     setShowResult(false);
-    setCurrentIndex((prev) => (prev + 1) % CARDS.length);
+    setCurrentIndex((prev) => (prev + 1) % cards.length);
   };
 
   const handlePrev = () => {
@@ -145,19 +187,53 @@ export default function FlashcardsGame() {
     setTriviaStarted(false);
     setQuizAnswer(null);
     setShowResult(false);
-    setCurrentIndex((prev) => (prev - 1 + CARDS.length) % CARDS.length);
+    setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length);
   };
 
   const handleTriviaAnswer = async (optionIndex: number) => {
     setQuizAnswer(optionIndex);
+
+    let isCorrect = false;
+    let explanationText = "";
+    let ansIdx = -1;
+
+    const res = await verifyGameAnswer('flashcards', activeCard.id, optionIndex);
+
+    if (res) {
+      isCorrect = res.isCorrect;
+      explanationText = res.explanation;
+      ansIdx = res.correctAnswerIdx;
+      if (res.pointsAwarded > 0) {
+        setScoreEarned(prev => prev + res.pointsAwarded);
+      }
+    } else {
+      isCorrect = optionIndex === activeCard.trivia.answerIndex;
+      explanationText = activeCard.trivia.explanation;
+      ansIdx = activeCard.trivia.answerIndex;
+      const points = isCorrect ? 20 : 5;
+      setScoreEarned(prev => prev + points);
+    }
+
+    // Set active card trivia explanation and correct index dynamically
+    setCards(prev => {
+      const nextCards = [...prev];
+      nextCards[currentIndex] = {
+        ...nextCards[currentIndex],
+        trivia: {
+          ...nextCards[currentIndex].trivia,
+          explanation: explanationText,
+          answerIndex: ansIdx
+        }
+      };
+      return nextCards;
+    });
+
     setShowResult(true);
 
-    const isCorrect = optionIndex === activeCard.trivia.answerIndex;
-    const points = isCorrect ? 20 : 5; // +20 points for correct, +5 points for participation
-    setScoreEarned(prev => prev + points);
-
-    // Save gameplay progress asynchronously
-    await incrementGamePlay('flashcards', points);
+    if (!res) {
+      // Save offline gameplay progress
+      await incrementGamePlay('flashcards', isCorrect ? 20 : 5);
+    }
   };
 
   return (
