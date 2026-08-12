@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  passwordHash  String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  role          String        @default("CITIZEN") // "STUDENT", "CITIZEN", "EDUCATOR", "CONTENT_REVIEWER", "CONTENT_ADMIN", "PLATFORM_ADMIN"
+  profile       Profile?
+  auditLogs     AuditLog[]
+  attempts      QuizAttempt[]
+  gameSessions  GameSession[]
+  feedbacks     Feedback[]
+}
+
+model Profile {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName   String
+  avatarUrl     String?
+  languagePref  String    @default("en")
+  points        Int       @default(0)
+  level         Int       @default(1)
+  streak        Int       @default(0)
+  lastActiveAt  DateTime  @default(now())
+  badges        Badge[]
+}
+
+model Badge {
+  id          String    @id @default(uuid())
+  profileId   String
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name        String
+  unlockedAt  DateTime  @default(now())
+}
+
+model Part {
+  id          String     @id @default(uuid())
+  partNumber  String     @unique // e.g. "Part V"
+  title       String
+  chapters    Chapter[]
+}
+
+model Chapter {
+  id          String     @id @default(uuid())
+  partId      String
+  part        Part       @relation(fields: [partId], references: [id], onDelete: Cascade)
+  title       String
+  articles    Article[]
+}
+
+model Article {
+  id               String               @id @default(uuid())
+  articleNumber    String               @unique // e.g. "Article 52"
+  title            String
+  chapterId        String
+  chapter          Chapter              @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  organ            String               // "LEGISLATURE", "EXECUTIVE", "JUDICIARY"
+  level            String               // "UNION", "STATE"
+  status           String               @default("DRAFT") // "DRAFT", "REVIEW", "APPROVED", "PUBLISHED", "ARCHIVED"
+  version          Int                  @default(1)
+  lastReviewedAt   DateTime             @default(now())
+  reviewerInfo     String?
+  translations     ArticleTranslation[]
+  scenarioQuestions ScenarioQuestion[]
+}
+
+model ArticleTranslation {
+  id                    String   @id @default(uuid())
+  articleId             String
+  article               Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  language              String   // "en", "hi", "ta"
+  title                 String
+  rawText               String
+  simplifiedSummary     String
+  childFriendlySummary  String
+  keyTakeaways          String   // JSON array representation
+}
+
+model ScenarioQuestion {
+  id              String        @id @default(uuid())
+  articleId       String
+  article         Article       @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  questionTextEn  String
+  questionTextHi  String
+  questionTextTa  String
+  optionsEn       String        // JSON array representation
+  optionsHi       String        // JSON array representation
+  optionsTa       String        // JSON array representation
+  correctAnswerIdx Int
+  explanationEn   String
+  explanationHi   String
+  explanationTa   String
+  attempts        QuizAttempt[]
+}
+
+model QuizAttempt {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    ScenarioQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  chosenIdx   Int
+  isCorrect   Boolean
+  answeredAt  DateTime         @default(now())
+}
+
+model GameSession {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameType    String    // "spin", "snakes", "board", "flashcards"
+  pointsEarned Int
+  createdAt   DateTime  @default(now())
+}
+
+model Feedback {
+  id          String    @id @default(uuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rating      Int
+  category    String
+  comment     String
+  createdAt   DateTime  @default(now())
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String
+  timestamp   DateTime  @default(now())
+  ipAddress   String?
+}
