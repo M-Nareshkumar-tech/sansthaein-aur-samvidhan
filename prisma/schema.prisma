@@ -10,17 +10,18 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(uuid())
-  email         String        @unique
-  passwordHash  String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  role          String        @default("CITIZEN") // "STUDENT", "CITIZEN", "EDUCATOR", "CONTENT_REVIEWER", "CONTENT_ADMIN", "PLATFORM_ADMIN"
-  profile       Profile?
-  auditLogs     AuditLog[]
-  attempts      QuizAttempt[]
-  gameSessions  GameSession[]
-  feedbacks     Feedback[]
+  id                String             @id @default(uuid())
+  email             String             @unique
+  passwordHash      String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  role              String             @default("CITIZEN") // "STUDENT", "CITIZEN", "EDUCATOR", "CONTENT_REVIEWER", "CONTENT_ADMIN", "PLATFORM_ADMIN"
+  profile           Profile?
+  auditLogs         AuditLog[]
+  attempts          QuizAttempt[]
+  gameSessions      GameSession[]
+  feedbacks         Feedback[]
+  masteredQuestions MasteredQuestion[]
 }
 
 model Profile {
@@ -43,6 +44,8 @@ model Badge {
   profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name        String
   unlockedAt  DateTime  @default(now())
+
+  @@index([profileId])
 }
 
 model Part {
@@ -89,20 +92,21 @@ model ArticleTranslation {
 }
 
 model ScenarioQuestion {
-  id              String        @id @default(uuid())
-  articleId       String
-  article         Article       @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  questionTextEn  String
-  questionTextHi  String
-  questionTextTa  String
-  optionsEn       String        // JSON array representation
-  optionsHi       String        // JSON array representation
-  optionsTa       String        // JSON array representation
+  id               String             @id @default(uuid())
+  articleId        String
+  article          Article            @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  questionTextEn   String
+  questionTextHi   String
+  questionTextTa   String
+  optionsEn        String             // JSON array representation
+  optionsHi        String             // JSON array representation
+  optionsTa        String             // JSON array representation
   correctAnswerIdx Int
-  explanationEn   String
-  explanationHi   String
-  explanationTa   String
-  attempts        QuizAttempt[]
+  explanationEn    String
+  explanationHi    String
+  explanationTa    String
+  attempts         QuizAttempt[]
+  masteryLogs      MasteredQuestion[]
 }
 
 model QuizAttempt {
@@ -114,6 +118,22 @@ model QuizAttempt {
   chosenIdx   Int
   isCorrect   Boolean
   answeredAt  DateTime         @default(now())
+
+  @@index([userId])
+  @@index([questionId])
+}
+
+model MasteredQuestion {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   ScenarioQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  masteredAt DateTime         @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([questionId])
 }
 
 model GameSession {
@@ -123,6 +143,8 @@ model GameSession {
   gameType    String    // "spin", "snakes", "board", "flashcards"
   pointsEarned Int
   createdAt   DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Feedback {
@@ -133,6 +155,8 @@ model Feedback {
   category    String
   comment     String
   createdAt   DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model AuditLog {

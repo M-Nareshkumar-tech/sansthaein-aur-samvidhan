@@ -30,23 +30,39 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T | nul
   }
 }
 
+let simulatorSessionOffset = 0;
+
 export async function getUserProgress(): Promise<UserProgress> {
   const serverProgress = await fetchJson<UserProgress>('/api/profile');
   if (serverProgress) {
-    return serverProgress;
+    // Inject session-only simulator points sandbox offset to prevent visual resets during polling
+    const adjustedPoints = serverProgress.score + simulatorSessionOffset;
+    return {
+      ...serverProgress,
+      score: adjustedPoints,
+      level: Math.max(serverProgress.level, Math.floor(adjustedPoints / 100) + 1)
+    };
   }
   return getClientProgress();
 }
 
 export async function addCivicPoints(points: number): Promise<UserProgress> {
-  const serverProgress = await fetchJson<UserProgress>('/api/profile/points', {
-    method: 'POST',
-    body: JSON.stringify({ points }),
-  });
+  // Always update local storage for offline / anonymous state
+  const local = localAddPoints(points);
+
+  const serverProgress = await fetchJson<UserProgress>('/api/profile');
   if (serverProgress) {
-    return serverProgress;
+    simulatorSessionOffset += points;
+    console.warn(`[Sandbox Mode] Decision Simulator points (+${points}) added to session offset. Total session offset: +${simulatorSessionOffset}. These points are sandbox-only and will not persist in the database.`);
+    
+    const adjustedPoints = serverProgress.score + simulatorSessionOffset;
+    return {
+      ...serverProgress,
+      score: adjustedPoints,
+      level: Math.max(serverProgress.level, Math.floor(adjustedPoints / 100) + 1)
+    };
   }
-  return localAddPoints(points);
+  return local;
 }
 
 export async function unlockBadge(badgeName: string): Promise<UserProgress> {
