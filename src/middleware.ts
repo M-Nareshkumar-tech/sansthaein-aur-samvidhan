@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { jwtVerify } from 'jose';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-samvidhan-key-2026';
-const key = new TextEncoder().encode(JWT_SECRET);
+import { verifyToken } from '@/lib/jwt';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -26,9 +23,13 @@ export async function middleware(request: NextRequest) {
     }
 
     try {
-      const { payload } = await jwtVerify(session, key, {
-        algorithms: ['HS256'],
-      });
+      // Consume centralized verifyToken helper which fails closed on missing secrets
+      const payload = await verifyToken(session);
+      if (!payload) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        return NextResponse.redirect(url);
+      }
       
       const role = payload.role as string;
 

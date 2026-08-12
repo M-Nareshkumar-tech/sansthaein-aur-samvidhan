@@ -1,37 +1,22 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getAuthenticatedUser, getUserProgressForUser } from '@/lib/api-helpers';
+import { getAuthorizedUser } from '@/lib/auth-helpers';
+import { checkAndUnlockBadges, getUserProgressForUser } from '@/lib/api-helpers';
 
 export async function POST(req: Request) {
   try {
-    const user = await getAuthenticatedUser();
-    if (!user || !user.profile) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // 1. Authenticate user
+    const { errorResponse, user } = await getAuthorizedUser();
+    if (errorResponse) return errorResponse;
 
-    const { badgeName } = await req.json();
-    if (!badgeName || typeof badgeName !== 'string') {
-      return NextResponse.json({ error: 'Badge name is required' }, { status: 400 });
-    }
+    // 2. Perform server-side evaluation based on user's actual database points
+    const currentPoints = user.profile.points;
+    await checkAndUnlockBadges(user.profile.id, currentPoints);
 
-    const existingBadges = await prisma.badge.findMany({
-      where: { profileId: user.profile.id }
-    });
-    const exists = existingBadges.some(b => b.name === badgeName);
-
-    if (!exists) {
-      await prisma.badge.create({
-        data: {
-          profileId: user.profile.id,
-          name: badgeName
-        }
-      });
-    }
-
+    // 3. Retrieve and return updated progress profile
     const progress = await getUserProgressForUser(user.id);
     return NextResponse.json(progress);
   } catch (error: any) {
-    console.error("POST /api/profile/badge error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('POST /api/profile/badge evaluation error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
