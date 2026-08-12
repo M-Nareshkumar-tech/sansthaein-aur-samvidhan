@@ -50,9 +50,10 @@ export async function getUserProgressForUser(userId: string): Promise<UserProgre
     throw new Error('User or profile not found');
   }
 
-  // Get distinct completed articles and quizzes
-  const completedArticles = Array.from(new Set(user.attempts.map(a => a.question.article.articleNumber)));
-  const completedQuizzes = Array.from(new Set(user.attempts.map(a => a.questionId)));
+  // Get distinct completed articles and quizzes (correct attempts only)
+  const correctAttempts = user.attempts.filter(a => a.isCorrect);
+  const completedArticles = Array.from(new Set(correctAttempts.map(a => a.question.article.articleNumber)));
+  const completedQuizzes = Array.from(new Set(correctAttempts.map(a => a.questionId)));
 
   const spinSessions = user.gameSessions.filter(s => s.gameType === 'spin');
   const snakesSessions = user.gameSessions.filter(s => s.gameType === 'snakes');

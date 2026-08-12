@@ -1,5 +1,7 @@
 import { seedArticles } from '../src/data/articles';
 import { prisma } from '../src/lib/prisma';
+import { GAME_SEED_DATA } from './game-seed-data';
+
 
 // Comprehensive Hindi translation mapping for the seed articles to populate in the DB
 const HINDI_ARTICLES_MAP: Record<string, { title: string; simplified: string; child: string; takeaways: string[] }> = {
@@ -315,6 +317,13 @@ async function main() {
   await prisma.quizAttempt.deleteMany({});
   await prisma.gameSession.deleteMany({});
   await prisma.feedback.deleteMany({});
+  await prisma.gameAttempt.deleteMany({});
+  await prisma.gameContent.deleteMany({});
+  await prisma.simulatorAttempt.deleteMany({});
+  await prisma.masteredScenario.deleteMany({});
+  await prisma.simulatorOption.deleteMany({});
+  await prisma.simulatorScenario.deleteMany({});
+  await prisma.simulatorPath.deleteMany({});
   await prisma.badge.deleteMany({});
   await prisma.profile.deleteMany({});
   await prisma.user.deleteMany({});
@@ -502,6 +511,10 @@ async function main() {
   // Seed Simulator Scenarios Idempotently
   console.log("Seeding simulator paths and scenarios...");
   await seedSimulator();
+
+  // Seed Games Idempotently
+  console.log("Seeding game content...");
+  await seedGames();
 
   console.log("Database seeded successfully with English, Hindi, and Tamil records!");
 }
@@ -962,3 +975,66 @@ async function seedSimulator() {
     }
   }
 }
+
+async function seedGames() {
+  for (const item of GAME_SEED_DATA) {
+    await prisma.gameContent.upsert({
+      where: {
+        gameType_identifier: {
+          gameType: item.gameType,
+          identifier: item.identifier
+        }
+      },
+      update: {
+        titleEn: item.titleEn,
+        titleHi: item.titleHi,
+        titleTa: item.titleTa,
+        descriptionEn: item.descriptionEn,
+        descriptionHi: item.descriptionHi,
+        descriptionTa: item.descriptionTa,
+        questionEn: item.questionEn,
+        questionHi: item.questionHi,
+        questionTa: item.questionTa,
+        optionsEn: JSON.stringify(item.optionsEn),
+        optionsHi: JSON.stringify(item.optionsHi),
+        optionsTa: JSON.stringify(item.optionsTa),
+        correctAnswerIdx: item.correctAnswerIdx,
+        points: item.points,
+        explanationEn: item.explanationEn,
+        explanationHi: item.explanationHi,
+        explanationTa: item.explanationTa
+      },
+      create: {
+        gameType: item.gameType,
+        identifier: item.identifier,
+        titleEn: item.titleEn,
+        titleHi: item.titleHi,
+        titleTa: item.titleTa,
+        descriptionEn: item.descriptionEn,
+        descriptionHi: item.descriptionHi,
+        descriptionTa: item.descriptionTa,
+        questionEn: item.questionEn,
+        questionHi: item.questionHi,
+        questionTa: item.questionTa,
+        optionsEn: JSON.stringify(item.optionsEn),
+        optionsHi: JSON.stringify(item.optionsHi),
+        optionsTa: JSON.stringify(item.optionsTa),
+        correctAnswerIdx: item.correctAnswerIdx,
+        points: item.points,
+        explanationEn: item.explanationEn,
+        explanationHi: item.explanationHi,
+        explanationTa: item.explanationTa
+      }
+    });
+  }
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+

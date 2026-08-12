@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { seedArticles, Article } from '@/data/articles';
 import { useI18n } from '@/hooks/useI18n';
-import { incrementGamePlay } from '@/lib/services';
+import { incrementGamePlay, getArticles, verifyGameAnswer } from '@/lib/services';
 import { 
   ArrowLeft, 
   HelpCircle, 
@@ -30,11 +30,26 @@ const WHEEL_SECTORS = [
 ];
 
 export default function SpinGame() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const [articlesList, setArticlesList] = useState<any[]>([]);
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [landedSector, setLandedSector] = useState<typeof WHEEL_SECTORS[0] | null>(null);
-  const [landedArticle, setLandedArticle] = useState<Article | null>(null);
+  const [landedArticle, setLandedArticle] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchDynamicArticles = async () => {
+      try {
+        const list = await getArticles(language);
+        if (list && list.length > 0) {
+          setArticlesList(list);
+        }
+      } catch (e) {
+        console.error("Failed to fetch dynamic articles for Spin Wheel", e);
+      }
+    };
+    fetchDynamicArticles();
+  }, [language]);
   
   // Quiz states
   const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
@@ -81,7 +96,10 @@ export default function SpinGame() {
       const sector = WHEEL_SECTORS[sectorIndex];
       setLandedSector(sector);
       
-      const article = seedArticles.find(a => a.article_number === sector.artNum) || null;
+      let article = articlesList.find(a => a.article_number === sector.artNum);
+      if (!article) {
+        article = seedArticles.find(a => a.article_number === sector.artNum) || null;
+      }
       setLandedArticle(article);
 
       // Play success audio
@@ -95,14 +113,44 @@ export default function SpinGame() {
   const handleQuizAnswerSubmit = async (optionIndex: number) => {
     if (!landedArticle) return;
     setQuizAnswer(optionIndex);
+
+    let isCorrect = false;
+    let pointsGained = 0;
+    let ansIdx = -1;
+    let explanationText = "";
+
+    const res = await verifyGameAnswer('spin', landedArticle.scenario_questions[0].id, optionIndex);
+
+    if (res) {
+      isCorrect = res.isCorrect;
+      pointsGained = res.pointsAwarded;
+      ansIdx = res.correctAnswerIdx;
+      explanationText = res.explanation;
+    } else {
+      // Fallback local logic for anonymous/offline players
+      const fallbackCorrectIdx = landedArticle.scenario_questions[0].answerIndex;
+      isCorrect = optionIndex === fallbackCorrectIdx;
+      pointsGained = isCorrect ? 40 : 10;
+      ansIdx = fallbackCorrectIdx;
+      explanationText = landedArticle.scenario_questions[0].explanation;
+      // Save offline progress
+      await incrementGamePlay('spin', pointsGained);
+    }
+
+    setWonPoints(pointsGained);
     setShowQuizResult(true);
 
-    const isCorrect = optionIndex === landedArticle.scenario_questions[0].answerIndex;
-    const pointsGained = isCorrect ? 40 : 10; // 40 points for correct, 10 pity points for effort
-    setWonPoints(pointsGained);
-
-    // Save progress asynchronously
-    await incrementGamePlay('spin', pointsGained);
+    // Update landedArticle with correct answerIndex and explanation dynamically for display
+    setLandedArticle((prev: any) => prev ? {
+      ...prev,
+      scenario_questions: [
+        {
+          ...prev.scenario_questions[0],
+          answerIndex: ansIdx,
+          explanation: explanationText
+        }
+      ]
+    } : null);
   };
 
   return (
@@ -256,7 +304,7 @@ export default function SpinGame() {
                   </p>
 
                   <div className="grid grid-cols-1 gap-2.5">
-                    {landedArticle.scenario_questions[0].options.map((opt, i) => {
+                    {landedArticle.scenario_questions[0].options.map((opt: string, i: number) => {
                       const isChosen = quizAnswer === i;
                       const isCorrect = i === landedArticle.scenario_questions[0].answerIndex;
 

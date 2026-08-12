@@ -24,6 +24,9 @@ model User {
   masteredQuestions MasteredQuestion[]
   simulatorAttempts SimulatorAttempt[]
   masteredScenarios MasteredScenario[]
+  gameAttempts      GameAttempt[]
+  gameMasteries     GameMastery[]
+  scenarioMasteries ScenarioMastery[]
 }
 
 model Profile {
@@ -109,6 +112,7 @@ model ScenarioQuestion {
   explanationTa    String
   attempts         QuizAttempt[]
   masteryLogs      MasteredQuestion[]
+  spinMasteries    ScenarioMastery[]
 }
 
 model QuizAttempt {
@@ -238,4 +242,72 @@ model MasteredScenario {
   @@unique([userId, scenarioId]) // Double-reward protection lock
   @@index([userId])
   @@index([scenarioId])
+}
+
+model GameContent {
+  id               String        @id @default(uuid())
+  gameType         String        // "spin", "snakes", "board", "flashcards"
+  identifier       String        // e.g. "space_0", "card_1", "ladder_4"
+  titleEn          String
+  titleHi          String
+  titleTa          String
+  descriptionEn    String
+  descriptionHi    String
+  descriptionTa    String
+  questionEn       String
+  questionHi       String
+  questionTa       String
+  optionsEn        String        // JSON array representation
+  optionsHi        String        // JSON array representation
+  optionsTa        String        // JSON array representation
+  correctAnswerIdx Int
+  points           Int           // Point weight computed on server
+  explanationEn    String
+  explanationHi    String
+  explanationTa    String
+  attempts         GameAttempt[]
+  masteries        GameMastery[]
+
+  @@unique([gameType, identifier])
+  @@index([gameType])
+}
+
+model GameAttempt {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameContentId String
+  gameContent   GameContent @relation(fields: [gameContentId], references: [id], onDelete: Cascade)
+  chosenIdx     Int
+  isCorrect     Boolean
+  answeredAt    DateTime    @default(now())
+
+  @@index([userId])
+  @@index([gameContentId])
+}
+
+model GameMastery {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameContentId String
+  gameContent   GameContent @relation(fields: [gameContentId], references: [id], onDelete: Cascade)
+  masteredAt    DateTime    @default(now())
+
+  @@unique([userId, gameContentId])
+  @@index([userId])
+  @@index([gameContentId])
+}
+
+model ScenarioMastery {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   ScenarioQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  masteredAt DateTime         @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([questionId])
 }

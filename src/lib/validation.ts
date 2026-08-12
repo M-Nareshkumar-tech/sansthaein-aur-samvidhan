@@ -40,3 +40,10 @@ export const simulatorSubmitSchema = z.object({
   scenarioId: z.string().min(1, 'Scenario ID is required'),
   optionIndex: z.number().int().min(0, 'Option index must be a non-negative integer')
 });
+
+export const gameVerifySchema = z.object({
+  gameType: z.enum(['spin', 'snakes', 'board', 'flashcards']),
+  identifier: z.string().min(1, 'Identifier is required'),
+  chosenOptionIndex: z.number().int().min(0, 'Option index must be a non-negative integer')
+});
+

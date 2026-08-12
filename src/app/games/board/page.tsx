@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { incrementGamePlay } from '@/lib/services';
+import { incrementGamePlay, getGameContent, verifyGameAnswer } from '@/lib/services';
 import { useI18n } from '@/hooks/useI18n';
 import { 
   ArrowLeft, 
@@ -286,7 +286,7 @@ const GRID_CELLS = [
 ];
 
 export default function BoardGame() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [playerPosition, setPlayerPosition] = useState(0);
   const [diceRoll, setDiceRoll] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -294,6 +294,44 @@ export default function BoardGame() {
   const [scoreAccumulated, setScoreAccumulated] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
   
+  const [spaces, setSpaces] = useState<BoardSpace[]>(BOARD_SPACES);
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  useEffect(() => {
+    const loadContent = async () => {
+      setLoadingContent(true);
+      try {
+        const data = await getGameContent('board', language);
+        if (data && data.length > 0) {
+          const list = BOARD_SPACES.map((s, idx) => {
+            const dbItem = data.find(item => item.identifier === `space_${idx}`);
+            if (dbItem) {
+              return {
+                ...s,
+                name: dbItem.title,
+                role: dbItem.description,
+                challenge: {
+                  crisis: s.challenge.crisis, // Keep flavor text
+                  question: dbItem.question,
+                  options: dbItem.options,
+                  answerIndex: -1, // Hidden
+                  explanation: "" // Verification loads it
+                }
+              };
+            }
+            return s;
+          });
+          setSpaces(list);
+        }
+      } catch (e) {
+        console.error("Failed to load board spaces dynamically", e);
+      } finally {
+        setLoadingContent(false);
+      }
+    };
+    loadContent();
+  }, [language]);
+
   // Dialog states
   const [activeSpace, setActiveSpace] = useState<BoardSpace | null>(null);
   const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
@@ -329,7 +367,7 @@ export default function BoardGame() {
     const nextPos = (playerPosition + roll) % 12;
     setPlayerPosition(nextPos);
 
-    const space = BOARD_SPACES[nextPos];
+    const space = spaces[nextPos];
     logMessage(`Rolled ${roll}. Travelled to ${space.name}.`);
 
     // Trigger Challenge Card
@@ -341,21 +379,60 @@ export default function BoardGame() {
   const handleChallengeSubmit = async (chosenIndex: number) => {
     if (!activeSpace) return;
     setQuizAnswer(chosenIndex);
+
+    let isCorrect = false;
+    let explanationText = "";
+    let ansIdx = -1;
+
+    const identifier = `space_${activeSpace.id}`;
+    const res = await verifyGameAnswer('board', identifier, chosenIndex);
+
+    if (res) {
+      isCorrect = res.isCorrect;
+      explanationText = res.explanation;
+      ansIdx = res.correctAnswerIdx;
+      if (res.pointsAwarded > 0) {
+        setScoreAccumulated(prev => prev + res.pointsAwarded);
+      }
+    } else {
+      isCorrect = chosenIndex === activeSpace.challenge.answerIndex;
+      explanationText = activeSpace.challenge.explanation;
+      ansIdx = activeSpace.challenge.answerIndex;
+      if (isCorrect) {
+        setScoreAccumulated(prev => prev + 35);
+      }
+    }
+
+    // Set active space explanation and correct index dynamically
+    setActiveSpace(prev => prev ? {
+      ...prev,
+      challenge: {
+        ...prev.challenge,
+        explanation: explanationText,
+        answerIndex: ansIdx
+      }
+    } : null);
+
     setShowExplanation(true);
 
-    const isCorrect = chosenIndex === activeSpace.challenge.answerIndex;
     if (isCorrect) {
       if (!responsibilities.includes(activeSpace.id)) {
         // Acquire responsibility
         const nextResp = [...responsibilities, activeSpace.id];
         setResponsibilities(nextResp);
-        setScoreAccumulated(prev => prev + 35);
-        logMessage(`Resolved crisis at ${activeSpace.name}! You acquired the role of '${activeSpace.role}'. +35 XP`);
+        logMessage(`Resolved crisis at ${activeSpace.name}! You acquired the role of '${activeSpace.role}'.`);
         
         // Check win condition
         if (nextResp.length >= 6) {
           setIsGameOver(true);
-          await incrementGamePlay('board', scoreAccumulated + 35 + 100); // 100 win bonus
+          const compRes = await verifyGameAnswer('board', 'completion', 0);
+          if (compRes) {
+            if (compRes.pointsAwarded > 0) {
+              setScoreAccumulated(prev => prev + compRes.pointsAwarded);
+            }
+          } else {
+            await incrementGamePlay('board', scoreAccumulated + (res ? res.pointsAwarded : 35) + 100);
+          }
           logMessage("Fabulous! You acquired 6 Institutional Responsibilities. You saved Samvidhan Nagri!");
         }
       } else {
@@ -412,7 +489,7 @@ export default function BoardGame() {
             
             {/* The 4x4 Perimeter Board Ring */}
             <div className="grid grid-cols-4 grid-rows-4 h-full w-full gap-1.5 relative">
-              {BOARD_SPACES.map((space) => {
+              {spaces.map((space) => {
                 const layout = GRID_CELLS.find(c => c.index === space.id)!;
                 const isPlayerHere = playerPosition === space.id;
                 const isAcquired = responsibilities.includes(space.id);
@@ -514,7 +591,7 @@ export default function BoardGame() {
                   responsibilities.map(id => (
                     <span key={id} className="text-[9px] px-2 py-0.5 rounded bg-green/10 border border-green/20 text-green font-bold flex items-center gap-0.5">
                       <UserCheck className="h-2.5 w-2.5" />
-                      {BOARD_SPACES[id].role}
+                      {spaces[id]?.role || BOARD_SPACES[id].role}
                     </span>
                   ))
                 ) : (

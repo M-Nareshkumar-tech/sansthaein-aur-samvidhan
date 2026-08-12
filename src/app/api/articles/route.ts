@@ -81,8 +81,8 @@ export async function GET(req: Request) {
           id: q.id,
           question: lang === 'hi' ? q.questionTextHi : lang === 'ta' ? q.questionTextTa : q.questionTextEn,
           options,
-          answerIndex: q.correctAnswerIdx,
-          explanation: lang === 'hi' ? q.explanationHi : lang === 'ta' ? q.explanationTa : q.explanationEn
+          answerIndex: -1, // Obfuscated
+          explanation: ""  // Obfuscated
         };
       });
 

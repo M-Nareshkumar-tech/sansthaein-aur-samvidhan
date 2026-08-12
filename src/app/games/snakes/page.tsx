@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { incrementGamePlay } from '@/lib/services';
+import { incrementGamePlay, getGameContent, verifyGameAnswer } from '@/lib/services';
 import { useI18n } from '@/hooks/useI18n';
 import { 
   ArrowLeft, 
@@ -119,11 +119,65 @@ const SNAKES: Record<number, { target: number; event: GameEvent }> = {
 };
 
 export default function SnakesGame() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [playerPosition, setPlayerPosition] = useState(1);
   const [diceRoll, setDiceRoll] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
   
+  const [dbLadders, setDbLadders] = useState<Record<number, any>>({});
+  const [dbSnakes, setDbSnakes] = useState<Record<number, any>>({});
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  useEffect(() => {
+    const loadContent = async () => {
+      setLoadingContent(true);
+      try {
+        const data = await getGameContent('snakes', language);
+        if (data && data.length > 0) {
+          const lMap: Record<number, any> = {};
+          const sMap: Record<number, any> = {};
+          
+          data.forEach(item => {
+            const parts = item.identifier.split('_');
+            const tile = parseInt(parts[1], 10);
+            if (item.identifier.startsWith('ladder')) {
+              lMap[tile] = {
+                target: LADDERS[tile].target,
+                event: {
+                  title: item.title,
+                  desc: item.description,
+                  question: item.question,
+                  options: item.options,
+                  answerIndex: -1, // Hidden
+                  explanation: "" // Verification loads it
+                }
+              };
+            } else if (item.identifier.startsWith('snake')) {
+              sMap[tile] = {
+                target: SNAKES[tile].target,
+                event: {
+                  title: item.title,
+                  desc: item.description,
+                  question: item.question,
+                  options: item.options,
+                  answerIndex: -1, // Hidden
+                  explanation: "" // Verification loads it
+                }
+              };
+            }
+          });
+          setDbLadders(lMap);
+          setDbSnakes(sMap);
+        }
+      } catch (e) {
+        console.error("Failed to load snakes game content dynamically", e);
+      } finally {
+        setLoadingContent(false);
+      }
+    };
+    loadContent();
+  }, [language]);
+
   // Game states
   const [activeEvent, setActiveEvent] = useState<{
     tile: number;
@@ -169,55 +223,93 @@ export default function SnakesGame() {
       setPlayerPosition(100);
       setIsGameOver(true);
       logMessage(`Rolled a ${roll}. Reached cell 100! You won the game!`);
-      await incrementGamePlay('snakes', scoreAccumulated + 100);
+      const res = await verifyGameAnswer('snakes', 'completion', 0);
+      if (res) {
+        if (res.pointsAwarded > 0) {
+          setScoreAccumulated(prev => prev + res.pointsAwarded);
+        }
+      } else {
+        await incrementGamePlay('snakes', scoreAccumulated + 100);
+      }
       return;
     }
 
     logMessage(`Rolled a ${roll}. Moved from ${playerPosition} to ${nextPos}.`);
     
+    const activeLadders = Object.keys(dbLadders).length > 0 ? dbLadders : LADDERS;
+    const activeSnakes = Object.keys(dbSnakes).length > 0 ? dbSnakes : SNAKES;
+
     // Check for snakes or ladders
-    if (LADDERS[nextPos]) {
+    if (activeLadders[nextPos]) {
       setPlayerPosition(nextPos);
       setActiveEvent({
         tile: nextPos,
         type: 'ladder',
-        event: LADDERS[nextPos].event
+        event: activeLadders[nextPos].event
       });
-    } else if (SNAKES[nextPos]) {
+    } else if (activeSnakes[nextPos]) {
       setPlayerPosition(nextPos);
       setActiveEvent({
         tile: nextPos,
         type: 'snake',
-        event: SNAKES[nextPos].event
+        event: activeSnakes[nextPos].event
       });
     } else {
       setPlayerPosition(nextPos);
     }
   };
 
-  const handleScenarioSubmit = (chosenIndex: number) => {
+  const handleScenarioSubmit = async (chosenIndex: number) => {
     if (!activeEvent) return;
     setQuizAnswer(chosenIndex);
+
+    let isCorrect = false;
+    let explanationText = "";
+    let ansIdx = -1;
+
+    const identifier = `${activeEvent.type}_${activeEvent.tile}`;
+    const res = await verifyGameAnswer('snakes', identifier, chosenIndex);
+
+    if (res) {
+      isCorrect = res.isCorrect;
+      explanationText = res.explanation;
+      ansIdx = res.correctAnswerIdx;
+      if (res.pointsAwarded > 0) {
+        setScoreAccumulated(prev => prev + res.pointsAwarded);
+      }
+    } else {
+      const originalEvent = activeEvent.type === 'ladder' ? LADDERS[activeEvent.tile] : SNAKES[activeEvent.tile];
+      isCorrect = chosenIndex === originalEvent.event.answerIndex;
+      explanationText = originalEvent.event.explanation;
+      ansIdx = originalEvent.event.answerIndex;
+      const fallbackPoints = isCorrect ? (activeEvent.type === 'ladder' ? 25 : 15) : 0;
+      setScoreAccumulated(prev => prev + fallbackPoints);
+    }
+
+    // Set active event explanation and correct index dynamically
+    setActiveEvent(prev => prev ? {
+      ...prev,
+      event: {
+        ...prev.event,
+        explanation: explanationText,
+        answerIndex: ansIdx
+      }
+    } : null);
+
     setShowExplanation(true);
 
-    const isCorrect = chosenIndex === activeEvent.event.answerIndex;
-    
     if (activeEvent.type === 'ladder') {
       if (isCorrect) {
         const target = LADDERS[activeEvent.tile].target;
         setPlayerPosition(target);
-        setScoreAccumulated(prev => prev + 25);
-        logMessage(`Correct! Climbed ladder from ${activeEvent.tile} to ${target}. +25 XP`);
+        logMessage(`Correct! Climbed ladder from ${activeEvent.tile} to ${target}.`);
       } else {
         logMessage(`Incorrect! Missed the ladder at cell ${activeEvent.tile}.`);
       }
     } else if (activeEvent.type === 'snake') {
       if (isCorrect) {
-        // Shielded from snake!
-        setScoreAccumulated(prev => prev + 15);
-        logMessage(`Correct! Used Constitutional Shield. Safe at cell ${activeEvent.tile}. +15 XP`);
+        logMessage(`Correct! Used Constitutional Shield. Safe at cell ${activeEvent.tile}.`);
       } else {
-        // Falls down snake
         const target = SNAKES[activeEvent.tile].target;
         setPlayerPosition(target);
         logMessage(`Incorrect! Slid down snake from ${activeEvent.tile} to ${target}.`);
