@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n } from '@/hooks/useI18n';
-import { addCivicPoints, getUserProgress } from '@/lib/services';
+import { addCivicPoints, getUserProgress, submitSimulatorDecision } from '@/lib/services';
 import { 
   Compass, 
   Lock, 
@@ -25,7 +25,7 @@ interface Scenario {
   title: string;
   description: string;
   articleLinked: string;
-  options: { text: string; points: number; explanation: string }[];
+  options: { text: string; points?: number; explanation?: string }[];
 }
 
 const PATHS = [
@@ -257,29 +257,66 @@ const PATHS = [
 
 export default function Simulator() {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   
   const [userLevel, setUserLevel] = useState(1);
+  const [paths, setPaths] = useState<typeof PATHS>(PATHS);
   const [selectedPath, setSelectedPath] = useState<typeof PATHS[0] | null>(null);
   const [activeScenarioIdx, setActiveScenarioIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [pathProgress, setPathProgress] = useState<Record<string, string[]>>({}); // pathId -> array of completed scenarioIds
-  
-  // Game metrics
-  const [scoreEarned, setScoreEarned] = useState(0);
   const [attemptedScenarios, setAttemptedScenarios] = useState<string[]>([]);
+  
+  // Game metrics & server-side result states
+  const [scoreEarned, setScoreEarned] = useState(0);
+  const [serverPointsAwarded, setServerPointsAwarded] = useState<number | null>(null);
+  const [serverIsCorrect, setServerIsCorrect] = useState<boolean | null>(null);
+  const [serverCorrectOptionIndex, setServerCorrectOptionIndex] = useState<number | null>(null);
+  const [serverExplanation, setServerExplanation] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProgress = async () => {
       const p = await getUserProgress();
       setUserLevel(p.level);
-      // Construct completed list
       const completed = p.completedQuizzes || [];
       setAttemptedScenarios(completed);
+
+      // Fetch dynamic paths from the server if authenticated
+      if (user) {
+        try {
+          const lang = language || 'en';
+          const res = await fetch(`/api/simulator/paths?lang=${lang}`);
+          if (res.ok) {
+            const dbPaths = await res.json();
+            // Map the icons and styling back to the database-driven paths
+            const mapped = dbPaths.map((path: any) => {
+              const original = PATHS.find(op => op.id === path.id);
+              return {
+                ...path,
+                icon: original ? original.icon : Compass,
+                color: original ? original.color : 'border-blue-500/20 text-blue-400 bg-blue-500/5',
+                glow: original ? original.glow : 'shadow-blue-500/5',
+                scenarios: path.scenarios.map((sc: any) => {
+                  const origScenario = original?.scenarios.find(os => os.id === sc.id);
+                  return {
+                    ...sc,
+                    options: sc.options.map((opt: any) => ({
+                      ...opt
+                      // Points and explanations will be supplied dynamically on submit by the server!
+                    }))
+                  };
+                })
+              };
+            });
+            setPaths(mapped);
+          }
+        } catch (err) {
+          console.error("Failed to load server simulator paths, using local fallbacks:", err);
+        }
+      }
     };
     fetchProgress();
-  }, []);
+  }, [user]);
 
   const startPath = (path: typeof PATHS[0]) => {
     if (userLevel < path.levelRequired) return;
@@ -288,6 +325,10 @@ export default function Simulator() {
     setSelectedOption(null);
     setShowResult(false);
     setScoreEarned(0);
+    setServerPointsAwarded(null);
+    setServerIsCorrect(null);
+    setServerCorrectOptionIndex(null);
+    setServerExplanation(null);
   };
 
   const handleOptionSelect = (idx: number) => {
@@ -300,11 +341,35 @@ export default function Simulator() {
     setShowResult(true);
     
     const scenario = selectedPath.scenarios[activeScenarioIdx];
-    const option = scenario.options[selectedOption];
-    setScoreEarned(prev => prev + option.points);
-
-    // Save attempts in DB
-    await addCivicPoints(option.points);
+    
+    if (user) {
+      // Authenticated users submit to server-authoritative API
+      try {
+        const response = await submitSimulatorDecision(selectedPath.id, scenario.id, selectedOption);
+        if (response) {
+          setScoreEarned(prev => prev + response.pointsAwarded);
+          setServerPointsAwarded(response.pointsAwarded);
+          setServerIsCorrect(response.isCorrect);
+          setServerCorrectOptionIndex(response.correctOptionIndex);
+          setServerExplanation(response.explanation);
+          
+          // Re-sync progress level
+          setUserLevel(response.progress.level);
+        }
+      } catch (err) {
+        console.error("Failed to submit decision to server:", err);
+      }
+    } else {
+      // Anonymous users fallback to local calculations
+      const option = scenario.options[selectedOption];
+      setScoreEarned(prev => prev + (option.points || 0));
+      setServerPointsAwarded(option.points || 0);
+      setServerIsCorrect((option.points || 0) === 40);
+      const correctIdx = scenario.options.findIndex(o => o.points === 40);
+      setServerCorrectOptionIndex(correctIdx);
+      setServerExplanation(option.explanation || '');
+      await addCivicPoints(option.points || 0);
+    }
   };
 
   const nextScenario = () => {
@@ -313,11 +378,13 @@ export default function Simulator() {
       setActiveScenarioIdx(prev => prev + 1);
       setSelectedOption(null);
       setShowResult(false);
+      setServerPointsAwarded(null);
+      setServerIsCorrect(null);
+      setServerCorrectOptionIndex(null);
+      setServerExplanation(null);
     } else {
       // Completed path!
-      // Add completion badge or log in DB
       setSelectedPath(null);
-      // Refresh user level
       const fetchLevel = async () => {
         const p = await getUserProgress();
         setUserLevel(p.level);
@@ -348,7 +415,7 @@ export default function Simulator() {
       {!selectedPath ? (
         // Path Selection View
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {PATHS.map((path) => {
+          {paths.map((path) => {
             const Icon = path.icon;
             const isLocked = userLevel < path.levelRequired;
             
@@ -440,7 +507,9 @@ export default function Simulator() {
                 }
                 
                 if (showResult) {
-                  const isCorrect = opt.points === 40;
+                  const isCorrect = serverCorrectOptionIndex !== null 
+                    ? serverCorrectOptionIndex === i 
+                    : opt.points === 40;
                   if (isCorrect) {
                     btnStyle = "bg-green/10 border-green/40 text-green font-bold";
                   } else if (isSelected) {
@@ -465,39 +534,47 @@ export default function Simulator() {
           </div>
 
           {/* Result explanation block */}
-          {showResult && selectedOption !== null && (
-            <div className={`p-5 rounded-2xl border space-y-3 animate-fadeIn text-xs ${
-              selectedPath.scenarios[activeScenarioIdx].options[selectedOption].points === 40
-                ? 'bg-green/5 border-green/20'
-                : 'bg-red-500/5 border-red-500/20'
-            }`}>
-              <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                <span className="font-extrabold text-white flex items-center gap-1.5 font-outfit uppercase">
-                  {selectedPath.scenarios[activeScenarioIdx].options[selectedOption].points === 40 ? (
-                    <span className="text-green flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4" /> Correct Resolution
-                    </span>
-                  ) : (
-                    <span className="text-red-400 flex items-center gap-1">
-                      <AlertTriangle className="h-4 w-4" /> Unconstitutional/Sub-optimal Action
-                    </span>
-                  )}
-                </span>
-                <span className="text-[10px] font-bold text-saffron font-outfit uppercase bg-saffron/10 border border-saffron/20 px-2 py-0.5 rounded">
-                  {selectedPath.scenarios[activeScenarioIdx].options[selectedOption].points} XP
-                </span>
-              </div>
-              
-              <p className="text-slate-300 leading-relaxed">
-                {selectedPath.scenarios[activeScenarioIdx].options[selectedOption].explanation}
-              </p>
+          {showResult && selectedOption !== null && (() => {
+            const isOptionCorrect = serverCorrectOptionIndex !== null 
+              ? serverCorrectOptionIndex === selectedOption 
+              : selectedPath.scenarios[activeScenarioIdx].options[selectedOption].points === 40;
 
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold bg-white/5 p-2 rounded-lg border border-white/5 w-fit font-sans">
-                <BookOpen className="h-3.5 w-3.5 text-saffron" />
-                <span>Reference: {selectedPath.scenarios[activeScenarioIdx].articleLinked}</span>
+            return (
+              <div className={`p-5 rounded-2xl border space-y-3 animate-fadeIn text-xs ${
+                isOptionCorrect
+                  ? 'bg-green/5 border-green/20'
+                  : 'bg-red-500/5 border-red-500/20'
+              }`}>
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="font-extrabold text-white flex items-center gap-1.5 font-outfit uppercase">
+                    {isOptionCorrect ? (
+                      <span className="text-green flex items-center gap-1">
+                        <CheckCircle className="h-4 w-4" /> Correct Resolution
+                      </span>
+                    ) : (
+                      <span className="text-red-400 flex items-center gap-1">
+                        <AlertTriangle className="h-4 w-4" /> Unconstitutional/Sub-optimal Action
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[10px] font-bold text-saffron font-outfit uppercase bg-saffron/10 border border-saffron/20 px-2 py-0.5 rounded">
+                    {serverPointsAwarded !== null 
+                      ? serverPointsAwarded 
+                      : selectedPath.scenarios[activeScenarioIdx].options[selectedOption].points} XP
+                  </span>
+                </div>
+                
+                <p className="text-slate-300 leading-relaxed">
+                  {serverExplanation || selectedPath.scenarios[activeScenarioIdx].options[selectedOption].explanation}
+                </p>
+
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold bg-white/5 p-2 rounded-lg border border-white/5 w-fit font-sans">
+                  <BookOpen className="h-3.5 w-3.5 text-saffron" />
+                  <span>Reference: {selectedPath.scenarios[activeScenarioIdx].articleLinked}</span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Action buttons */}
           <div className="flex items-center justify-between pt-4 border-t border-white/5">

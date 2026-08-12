@@ -34,3 +34,9 @@ export const feedbackSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   comment: z.string().min(1, 'Comment is required')
 });
+
+export const simulatorSubmitSchema = z.object({
+  pathId: z.string().min(1, 'Path ID is required'),
+  scenarioId: z.string().min(1, 'Scenario ID is required'),
+  optionIndex: z.number().int().min(0, 'Option index must be a non-negative integer')
+});
