@@ -22,6 +22,8 @@ model User {
   gameSessions      GameSession[]
   feedbacks         Feedback[]
   masteredQuestions MasteredQuestion[]
+  simulatorAttempts SimulatorAttempt[]
+  masteredScenarios MasteredScenario[]
 }
 
 model Profile {
@@ -166,4 +168,74 @@ model AuditLog {
   action      String
   timestamp   DateTime  @default(now())
   ipAddress   String?
+}
+
+model SimulatorPath {
+  id            String              @id // "beginner", "intermediate", "advanced", "expert"
+  titleEn       String
+  titleHi       String
+  titleTa       String
+  levelRequired Int
+  scenarios     SimulatorScenario[]
+}
+
+model SimulatorScenario {
+  id            String              @id // "B1", "B2", "I1", "I2", etc.
+  pathId        String
+  path          SimulatorPath       @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  titleEn       String
+  titleHi       String
+  titleTa       String
+  descriptionEn String
+  descriptionHi String
+  descriptionTa String
+  articleLinked String
+  options       SimulatorOption[]
+  attempts      SimulatorAttempt[]
+  masteryLogs   MasteredScenario[]
+
+  @@index([pathId])
+}
+
+model SimulatorOption {
+  id            String            @id @default(uuid())
+  scenarioId    String
+  scenario      SimulatorScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  optionIndex   Int               // 0, 1, 2
+  textEn        String
+  textHi        String
+  textTa        String
+  points        Int               // Server-only scoring weight
+  explanationEn String
+  explanationHi String
+  explanationTa String
+
+  @@unique([scenarioId, optionIndex])
+  @@index([scenarioId])
+}
+
+model SimulatorAttempt {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenarioId  String
+  scenario    SimulatorScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  chosenIndex Int
+  answeredAt  DateTime          @default(now())
+
+  @@index([userId])
+  @@index([scenarioId])
+}
+
+model MasteredScenario {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenarioId  String
+  scenario    SimulatorScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  masteredAt  DateTime          @default(now())
+
+  @@unique([userId, scenarioId]) // Double-reward protection lock
+  @@index([userId])
+  @@index([scenarioId])
 }

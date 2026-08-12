@@ -478,30 +478,487 @@ async function main() {
 
   // Seed a demo user
   console.log("Seeding demo citizen user...");
-  const demoUser = await prisma.user.create({
-    data: {
-      email: "citizen@india.gov.in",
-      passwordHash: "$2a$12$R.Sj.YqNqGzO0R8kY6Lg5eS6w95Fk3Y1K4yZJc1pM/c1C3i5jYl6K", // Hash of "Samvidhan2026"
-      role: "CITIZEN",
-      profile: {
-        create: {
-          displayName: "Satyamev Jayate",
-          languagePref: "en",
-          points: 120,
-          level: 2,
+  const existingUser = await prisma.user.findUnique({
+    where: { email: "citizen@india.gov.in" }
+  });
+  if (!existingUser) {
+    await prisma.user.create({
+      data: {
+        email: "citizen@india.gov.in",
+        passwordHash: "$2a$12$R.Sj.YqNqGzO0R8kY6Lg5eS6w95Fk3Y1K4yZJc1pM/c1C3i5jYl6K", // Hash of "Samvidhan2026"
+        role: "CITIZEN",
+        profile: {
+          create: {
+            displayName: "Satyamev Jayate",
+            languagePref: "en",
+            points: 120,
+            level: 2,
+          }
         }
       }
-    }
-  });
+    });
+  }
+
+  // Seed Simulator Scenarios Idempotently
+  console.log("Seeding simulator paths and scenarios...");
+  await seedSimulator();
 
   console.log("Database seeded successfully with English, Hindi, and Tamil records!");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+async function seedSimulator() {
+  const PATHS_DATA = [
+    {
+      id: 'beginner',
+      titleEn: 'Beginner Path (Union & State Basics)',
+      titleHi: 'शुरुआती पथ (संघ और राज्य की बुनियादी बातें)',
+      titleTa: 'தொடக்கப் பாதை (மத்திய மற்றும் மாநில அடிப்படைகள்)',
+      levelRequired: 1,
+      scenarios: [
+        {
+          id: 'B1',
+          titleEn: 'The Cabinet Appointment',
+          titleHi: 'कैबिनेट की नियुक्ति',
+          titleTa: 'அமைச்சரவை நியமனம்',
+          descriptionEn: 'The Prime Minister advises you (the President) to appoint a close advisor as a Cabinet Minister. However, this advisor is not currently a member of either Lok Sabha or Rajya Sabha. What do you do?',
+          descriptionHi: 'प्रधानमंत्री आपको (राष्ट्रपति को) एक करीबी सलाहकार को कैबिनेट मंत्री नियुक्त करने की सलाह देते हैं। हालांकि, यह सलाहकार वर्तमान में लोकसभा या राज्यसभा के सदस्य नहीं हैं। आप क्या करेंगे?',
+          descriptionTa: 'நெருக்கமான ஒருவரை அமைச்சரவை அமைச்சராக நியமிக்குமாறு பிரதமர் உங்களுக்கு (ஜனாதிபதிக்கு) அறிவுறுத்துகிறார். ஆனால், இவர் தற்போது நாடாளுமன்றத்தில் உறுப்பினராக இல்லை. நீங்கள் என்ன செய்வீர்கள்?',
+          articleLinked: 'Article 74 & 75',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'Refuse the appointment, as ministers must be Members of Parliament.',
+              textHi: 'नियुक्ति से इंकार करें, क्योंकि मंत्रियों को संसद का सदस्य होना चाहिए।',
+              textTa: 'नियुक्ति से इंकार करें, क्योंकि मंत्रियों को संसद का सदस्य होना चाहिए।',
+              points: 10,
+              explanationEn: 'Incorrect. Article 75(5) allows a non-member to be appointed as a minister, but they must get elected to either House within six consecutive months.',
+              explanationHi: 'गलत। अनुच्छेद 75(5) एक गैर-सदस्य को मंत्री नियुक्त करने की अनुमति देता है, लेकिन उन्हें छह महीने के भीतर संसद सदस्य बनना होगा।',
+              explanationTa: 'गलत। अनुच्छेद 75(5) एक गैर-सदस्य को मंत्री नियुक्त करने की अनुमति देता है, लेकिन उन्हें छह महीने के भीतर संसद सदस्य बनना होगा।'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'Appoint them, but warn that they must get elected to Parliament within 6 months.',
+              textHi: 'उन्हें नियुक्त करें, लेकिन चेतावनी दें कि उन्हें 6 महीने के भीतर संसद के लिए निर्वाचित होना होगा।',
+              textTa: 'அவர்களை நியமிக்கவும், ஆனால் 6 மாதங்களுக்குள் நாடாளுமன்றத்திற்கு தேர்ந்தெடுக்கப்பட வேண்டும் என்று எச்சரிக்கவும்.',
+              points: 40,
+              explanationEn: 'Correct! According to Article 75(5), a minister who is not a member of Parliament for six consecutive months ceases to be a minister.',
+              explanationHi: 'सही! अनुच्छेद 75(5) के अनुसार, एक मंत्री जो लगातार छह महीने तक संसद का सदस्य नहीं रहता है, वह मंत्री पद पर नहीं रह सकता।',
+              explanationTa: 'சரி! பிரிவு 75(5)-ன் படி, தொடர்ச்சியாக ஆறு மாதங்கள் நாடாளுமன்ற உறுப்பினராக இல்லாத நபர் அமைச்சர் பதவியில் நீடிக்க முடியாது.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'Appoint them permanently without any conditions, using presidential discretion.',
+              textHi: 'राष्ट्रपति के विवेक का उपयोग करते हुए, बिना किसी शर्त के उन्हें स्थायी रूप से नियुक्त करें।',
+              textTa: 'ஜனாதிபதியின் விருப்பத்தைப் பயன்படுத்தி எந்த நிபந்தனையுமின்றி நிரந்தரமாக நியமிக்கவும்.',
+              points: 5,
+              explanationEn: 'Incorrect. A minister cannot continue beyond six months without gaining election to Parliament.',
+              explanationHi: 'गलत। कोई भी मंत्री संसद का सदस्य बने बिना छह महीने से अधिक समय तक पद पर नहीं रह सकता।',
+              explanationTa: 'தवறு. நாடாளுமன்ற உறுப்பினராக தேர்ந்தெடுக்கப்படாமல் ஒருவர் ஆறு மாதங்களுக்கு மேல் அமைச்சராக தொடர முடியாது.'
+            }
+          ]
+        },
+        {
+          id: 'B2',
+          titleEn: 'Governor\'s Assent Dilemma',
+          titleHi: 'राज्यपाल की सहमति की दुविधा',
+          titleTa: 'ஆளுநரின் ஒப்புதல் சங்கடம்',
+          descriptionEn: 'You are the Governor of a state. The State Assembly has passed a bill that significantly weakens the power of the State High Court. What is your constitutional action?',
+          descriptionHi: 'आप एक राज्य के राज्यपाल हैं। राज्य विधानसभा ने एक ऐसा विधेयक पारित किया है जो राज्य उच्च न्यायालय की शक्ति को काफी कमजोर करता है। आपकी संवैधानिक कार्रवाई क्या है?',
+          descriptionTa: 'நீங்கள் ஒரு மாநிலத்தின் ஆளுநர். மாநில உயர்நீதிமன்றத்தின் அதிகாரத்தை கணிசமாகக் குறைக்கும் மசோதாவை மாநில சட்டமன்றம் நிறைவேற்றியுள்ளது. உங்கள் அரசியலமைப்பு நடவடிக்கை என்ன?',
+          articleLinked: 'Article 200',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'Sign the bill immediately, since the state cabinet has advised you to do so.',
+              textHi: 'विधेयक पर तुरंत हस्ताक्षर करें, क्योंकि राज्य कैबिनेट ने आपको ऐसा करने की सलाह दी है।',
+              textTa: 'மசோதாவில் உடனடியாக கையெழுத்திடுங்கள், ஏனெனில் மாநில அமைச்சரவை உங்களுக்கு அவ்வாறு செய்ய அறிவுறுத்தியுள்ளது.',
+              points: 5,
+              explanationEn: 'Incorrect. If the bill derogates from the powers of the High Court, signing it would violate your oath to protect judicial independence.',
+              explanationHi: 'गलत। यदि विधेयक उच्च न्यायालय की शक्तियों को कम करता है, तो उस पर हस्ताक्षर करना न्यायिक स्वतंत्रता की रक्षा करने की आपकी शपथ का उल्लंघन होगा।',
+              explanationTa: 'தவறு. மசோதா உயர் நீதிமன்றத்தின் அதிகாரங்களைக் குறைத்தால், அதில் கையெழுத்திடுவது நீதித்துறையின் சுதந்திரத்தைப் பாதுகாப்பதற்கான உங்கள் உறுதிமொழியை மீறுவதாகும்.'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'Reserve the bill for the consideration of the President of India.',
+              textHi: 'विधेयक को भारत के राष्ट्रपति के विचारार्थ आरक्षित रखें।',
+              textTa: 'மசோதாவை இந்திய ஜனாதிபதியின் பரிசீலனைக்காக நிறுத்தி வைக்கவும்.',
+              points: 40,
+              explanationEn: 'Correct! Under Article 200, the Governor MUST reserve any bill for the President if it would endanger the constitutional position of the High Court.',
+              explanationHi: 'सही! अनुच्छेद 200 के तहत, राज्यपाल को राष्ट्रपति के लिए किसी भी विधेयक को आरक्षित रखना चाहिए यदि इससे उच्च न्यायालय की संवैधानिक स्थिति को खतरा हो।',
+              explanationTa: 'சரி! பிரிவு 200-ன் கீழ், உயர் நீதிமன்றத்தின் அரசியலமைப்பு நிலைக்கு ஆபத்தை விளைவிக்கும் மசோதாவை ஆளுநர் ஜனாதிபதியின் பரிசீலனைக்கு அனுப்ப வேண்டும்.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'Veto the bill permanently and dissolve the Assembly.',
+              textHi: 'विधेयक को स्थायी रूप से वीटो करें और विधानसभा को भंग कर दें।',
+              textTa: 'மசோதாவை நிரந்தரமாக நிராகரித்து சட்டமன்றத்தைக் கலைக்கவும்.',
+              points: 10,
+              explanationEn: 'Incorrect. Governors do not have absolute veto power, nor can they dissolve the assembly arbitrarily without cabinet recommendation.',
+              explanationHi: 'गलत। राज्यपालों के पास पूर्ण वीटो शक्ति नहीं होती है, और न ही वे कैबिनेट की सिफारिश के बिना मनमाने ढंग से विधानसभा को भंग कर सकते हैं।',
+              explanationTa: 'தவறு. ஆளுநர்களுக்கு முழுமையான நிராகரிப்பு அதிகாரம் இல்லை, அமைச்சரவை பரிந்துரையின்றி தன்னிச்சையாக சட்டமன்றத்தை கலைக்க முடியாது.'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'intermediate',
+      titleEn: 'Intermediate Path (Checks & Balances)',
+      titleHi: 'मध्यम पथ (नियंत्रण और संतुलन)',
+      titleTa: 'இடைநிலை பாதை (கட்டுப்பாடுகள் மற்றும் சமநிலைகள்)',
+      levelRequired: 3,
+      scenarios: [
+        {
+          id: 'I1',
+          titleEn: 'The Rajya Sabha Delay',
+          titleHi: 'राज्यसभा का विलंब',
+          titleTa: 'ராஜ்யசபா தாமதம்',
+          descriptionEn: 'Lok Sabha passes a crucial Money Bill regarding income tax reforms and sends it to Rajya Sabha. The Rajya Sabha disagrees with the tax brackets and decides to sit on the bill without returning it. What happens after 14 days?',
+          descriptionHi: 'लोकसभा आयकर सुधारों के संबंध में एक महत्वपूर्ण धन विधेयक पारित करती है और इसे राज्यसभा भेजती है। राज्यसभा टैक्स स्लैब से असहमत है और इसे वापस किए बिना रखने का फैसला करती है। 14 दिनों के बाद क्या होता है?',
+          descriptionTa: 'வருமான வரி சீர்திருத்தங்கள் தொடர்பான முக்கியமான பண மசோதாவை லோக்சபா நிறைவேற்றி ராஜ்யசபாவிற்கு அனுப்புகிறது. ராஜ்யசபா அதை திருப்பி அனுப்பாமல் வைத்திருக்க முடிவு செய்கிறது. 14 நாட்களுக்குப் பிறகு என்ன நடக்கும்?',
+          articleLinked: 'Article 109',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'The bill lapses and must be introduced again in the next session.',
+              textHi: 'विधेयक समाप्त हो जाता है और इसे अगले सत्र में फिर से पेश किया जाना चाहिए।',
+              textTa: 'மசோதா காலாவதியாகிவிடும் மற்றும் அடுத்த கூட்டத்தொடரில் மீண்டும் அறிமுகப்படுத்தப்பட வேண்டும்.',
+              points: 5,
+              explanationEn: 'Incorrect. Money bills have special rules and cannot lapse due to Rajya Sabha delay.',
+              explanationHi: 'गलत। धन विधेयकों के विशेष नियम होते हैं और वे राज्यसभा के विलंब के कारण समाप्त नहीं हो सकते।',
+              explanationTa: 'தவறு. பண மசோதாக்களுக்கு சிறப்பு விதிகள் உள்ளன, ராஜ்யசபா தாமதத்தால் அவை காலாவதியாகாது.'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'A joint sitting of both Houses must be called by the President to resolve the deadlock.',
+              textHi: 'गतिरोध को हल करने के लिए राष्ट्रपति द्वारा दोनों सदनों की संयुक्त बैठक बुलाई जानी चाहिए।',
+              textTa: 'தேக்க நிலையைத் தீர்க்க ஜனாதிபதியால் இரு அவைகளின் கூட்டுக் கூட்டம் கூட்டப்பட வேண்டும்.',
+              points: 15,
+              explanationEn: 'Incorrect. Article 108 (Joint Sitting) does not apply to Money Bills.',
+              explanationHi: 'गलत। अनुच्छेद 108 (संयुक्त बैठक) धन विधेयकों पर लागू नहीं होता है।',
+              explanationTa: 'தவறு. பிரிவு 108 (கூட்டுக் கூட்டம்) பண மசோதாக்களுக்குப் பொருந்தாது.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'The bill is deemed to have been passed by both Houses in the form passed by Lok Sabha.',
+              textHi: 'विधेयक को लोकसभा द्वारा पारित रूप में दोनों सदनों द्वारा पारित माना जाता है।',
+              textTa: 'லோக்சபாவில் நிறைவேற்றப்பட்ட வடிவத்திலேயே இரு அவைகளிலும் மசோதா நிறைவேற்றப்பட்டதாகக் கருதப்படும்.',
+              points: 40,
+              explanationEn: 'Correct! Under Article 109(5), if Rajya Sabha does not return a Money Bill within 14 days, it is deemed passed by both Houses in the Lok Sabha version.',
+              explanationHi: 'सही! अनुच्छेद 109(5) के तहत, यदि राज्यसभा 14 दिनों के भीतर धन विधेयक वापस नहीं करती है, तो इसे लोकसभा संस्करण में दोनों सदनों द्वारा पारित माना जाता है।',
+              explanationTa: 'சரி! பிரிவு 109(5)-ன் படி, ராஜ்யசபா 14 நாட்களுக்குள் பண மசோதாவைத் திருப்பி அனுப்பவில்லை என்றால், லோக்சபா பதிப்பில் இரு அவைகளிலும் நிறைவேற்றப்பட்டதாகக் கருதப்படும்.'
+            }
+          ]
+        },
+        {
+          id: 'I2',
+          titleEn: 'State Machinery Breakdown',
+          titleHi: 'राज्य तंत्र की विफलता',
+          titleTa: 'மாநில இயந்திர முறிவு',
+          descriptionEn: 'A state experiences severe internal rioting, and the state cabinet fails to contain it. The Governor reports that the state administration cannot be carried out in accordance with the Constitution. What step is taken?',
+          descriptionHi: 'एक राज्य गंभीर आंतरिक दंगों का अनुभव करता है, और राज्य कैबिनेट इसे नियंत्रित करने में विफल रहती है। राज्यपाल रिपोर्ट देते हैं कि राज्य का प्रशासन संविधान के अनुसार नहीं चलाया जा सकता है। क्या कदम उठाया जाता है?',
+          descriptionTa: 'ஒரு மாநிலத்தில் கடுமையான உள்நாட்டுக் கலவரம் ஏற்படுகிறது, மாநில அமைச்சரவை அதை கட்டுப்படுத்தத் தவறிவிட்டது. மாநில நிர்வாகத்தை அரசியலமைப்பின் படி நடத்த முடியாது என்று ஆளுநர் அறிக்கை அளிக்கிறார். என்ன நடவடிக்கை எடுக்கப்படும்?',
+          articleLinked: 'Article 356',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'The President issues a proclamation of President\'s Rule in the state.',
+              textHi: 'राष्ट्रपति राज्य में राष्ट्रपति शासन की घोषणा जारी करते हैं।',
+              textTa: 'ஜனாதிபதி மாநிலத்தில் ஜனாதிபதி ஆட்சியை அமல்படுத்துகிறார்.',
+              points: 40,
+              explanationEn: 'Correct! Under Article 356, if the President receives a report from the Governor and is satisfied that the state machinery has broken down, President\'s Rule can be imposed.',
+              explanationHi: 'सही! अनुच्छेद 356 के तहत, यदि राष्ट्रपति को राज्यपाल से रिपोर्ट मिलती है और वह संतुष्ट हैं कि राज्य तंत्र विफल हो गया है, तो राष्ट्रपति शासन लगाया जा सकता है।',
+              explanationTa: 'சரி! பிரிவு 356-ன் படி, ஆளுநரிடம் இருந்து அறிக்கை கிடைத்து, மாநில நிர்வாகம் முறிந்துவிட்டதாக ஜனாதிபதி திருப்தி அடைந்தால், ஜனாதிपति ஆட்சி விதிக்கப்படலாம்.'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'The Supreme Court directly takes over the administration of the state.',
+              textHi: 'सर्वोच्च न्यायालय सीधे राज्य का प्रशासन संभालता है।',
+              textTa: 'உயர் நீதிமன்றம் நேரடியாக மாநில நிர்வாகத்தை ஏற்று நடத்துகிறது.',
+              points: 5,
+              explanationEn: 'Incorrect. The judiciary has no executive administration powers under the Constitution.',
+              explanationHi: 'गलत। संविधान के तहत न्यायपालिका के पास कोई कार्यकारी प्रशासन शक्तियां नहीं हैं।',
+              explanationTa: 'தவறு. அரசியலமைப்பின் கீழ் நீதித்துறைக்கு நிர்வாக அதிகாரங்கள் இல்லை.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'The Central Cabinet sends the Army to arrest the Chief Minister.',
+              textHi: 'केंद्रीय कैबिनेट मुख्यमंत्री को गिरफ्तार करने के लिए सेना भेजती है।',
+              textTa: 'மத்திய அமைச்சரவை முதலமைச்சரைக் கைது செய்ய ராணுவத்தை அனுப்புகிறது.',
+              points: 10,
+              explanationEn: 'Incorrect. The CM cannot be arrested arbitrarily; constitutional procedures under Article 356 must be followed.',
+              explanationHi: 'गलत। सीएम को मनमाने ढंग से गिरफ्तार नहीं किया जा सकता; अनुच्छेद 356 के तहत संवैधानिक प्रक्रियाओं का पालन किया जाना चाहिए।',
+              explanationTa: 'தவறு. முதலமைச்சரை தன்னிச்சையாக கைது செய்ய முடியாது; பிரிவு 356-ன் கீழ் அரசியலமைப்பு நடைமுறைகள் பின்பற்றப்பட வேண்டும்.'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'advanced',
+      titleEn: 'Advanced Path (Judicial Review & Writs)',
+      titleHi: 'उन्नत पथ (न्यायिक समीक्षा और रिट)',
+      titleTa: 'உயர்நிலை பாதை (நீதித்துறை மறுஆய்வு மற்றும் நீதிப்பேராணைகள்)',
+      levelRequired: 5,
+      scenarios: [
+        {
+          id: 'A1',
+          titleEn: 'Arbitrary Arrest Shield',
+          titleHi: 'मनमानी गिरफ्तारी से सुरक्षा',
+          titleTa: 'தன்னிச்சையான கைதுக்கு எதிரான கேடயம்',
+          descriptionEn: 'Your cousin has been picked up by local police for questioning and has been kept in custody for over 48 hours without any production before a magistrate. What writ should you file in the High Court?',
+          descriptionHi: 'आपके चचेरे भाई को स्थानीय पुलिस ने पूछताछ के लिए उठाया है और मजिस्ट्रेट के सामने पेश किए बिना 48 घंटे से अधिक समय तक हिरासत में रखा है। आपको उच्च न्यायालय में कौन सी रिट दायर करनी चाहिए?',
+          descriptionTa: 'உங்கள் உறவினர் ஒருவரை உள்ளூர் போலீசார் விசாரணைக்காக அழைத்துச் சென்று, நீதிபதி முன் ஆஜர்படுத்தாமல் 48 மணி நேரத்திற்கும் மேலாக காவலில் வைத்துள்ளனர். உயர்நீதிமன்றத்தில் நீங்கள் என்ன மனு தாக்கல் செய்ய வேண்டும்?',
+          articleLinked: 'Article 226 & 22',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'Writ of Habeas Corpus ("Produce the Body")',
+              textHi: 'बंदी प्रत्यक्षीकरण रिट ("शरीर को प्रस्तुत करें")',
+              textTa: 'ஆட்கொணர்வு நீதிப்பேராணை ("உடலை ஆஜர்படுத்து")',
+              points: 40,
+              explanationEn: 'Correct! Habeas Corpus is filed under Article 226/32 to protect personal liberty against unlawful detention, commanding the state to produce the detained person.',
+              explanationHi: 'सही! बंदी प्रत्यक्षीकरण अनुच्छेद 226/32 के तहत गैर-कानूनी हिरासत के खिलाफ व्यक्तिगत स्वतंत्रता की रक्षा के लिए दायर किया जाता है।',
+              explanationTa: 'சரி! சட்டவிரோத காவலில் இருந்து தனிநபர் சுதந்திரத்தைப் பாதுகாக்க பிரிவு 226/32-ன் கீழ் ஆட்கொணர்வு மனு தாக்கல் செய்யப்படுகிறது.'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'Writ of Mandamus ("We Command")',
+              textHi: 'परमादेश रिट ("हम आदेश देते हैं")',
+              textTa: 'செயலுறுத்தும் நீதிப்பேராணை ("நாங்கள் கட்டளையிடுகிறோம்")',
+              points: 15,
+              explanationEn: 'Incorrect. Mandamus is used to compel a public official to perform a duty, not for illegal detention release.',
+              explanationHi: 'गलत। Mandamus का उपयोग किसी सार्वजनिक अधिकारी को कर्तव्य निभाने के लिए मजबूर करने के लिए किया जाता है, अवैध हिरासत से रिहाई के लिए नहीं।',
+              explanationTa: 'தவறு. ஒரு அரசு அதிகாரி தனது கடமையை செய்ய கட்டாயப்படுத்த செயலுறுத்தும் பேராணை பயன்படுத்தப்படுகிறது, சட்டவிரோத காவலில் இருந்து விடுவிக்க அல்ல.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'Writ of Quo Warranto ("By What Authority")',
+              textHi: 'अधिकार पृच्छा रिट ("किस अधिकार से")',
+              textTa: 'தகுதிமுறை வினவும் நீதிப்பேராணை ("என்ன அதிகாரத்தால்")',
+              points: 10,
+              explanationEn: 'Incorrect. Quo Warranto challenges a person\'s right to hold a public office.',
+              explanationHi: 'गलत। Quo Warranto किसी व्यक्ति के सार्वजनिक पद पर बने रहने के अधिकार को चुनौती देता है।',
+              explanationTa: 'தவறு. தகுதிமுறை வினவும் பேராணை ஒருவர் அரசு பதவியை வகிக்கும் அதிகாரத்தை சவால் செய்கிறது.'
+            }
+          ]
+        },
+        {
+          id: 'A2',
+          titleEn: 'Conflict of Laws',
+          titleHi: 'कानूनों का टकराव',
+          titleTa: 'சட்டங்களின் முரண்பாடு',
+          descriptionEn: 'Both Parliament and a State Legislature pass laws on the subject of "Contracts" (which is in the Concurrent List). The state law directly contradicts the federal law. Which law prevails?',
+          descriptionHi: 'संसद और राज्य विधानमंडल दोनों "अनुबंध" (जो समवर्ती सूची में है) के विषय पर कानून बनाते हैं। राज्य का कानून सीधे संघीय कानून का विरोध करता है। कौन सा कानून लागू होगा?',
+          descriptionTa: 'நாடாளுமன்றம் மற்றும் மாநில சட்டமன்றம் இரண்டும் "ஒப்பந்தங்கள்" (இது பொதுப்பட்டியலில் உள்ளது) என்ற விஷயத்தில் சட்டங்களை இயற்றுகின்றன. மாநில சட்டம் மத்திய சட்டத்திற்கு நேரடியாக முரணாக உள்ளது. எந்த சட்டம் மேலோங்கும்?',
+          articleLinked: 'Article 254',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'The state law always prevails within the state territory.',
+              textHi: 'राज्य का कानून हमेशा राज्य क्षेत्र के भीतर लागू होता है।',
+              textTa: 'மாநில சட்டம் எப்போதும் மாநில எல்லைக்குள் மேலோங்கும்.',
+              points: 5,
+              explanationEn: 'Incorrect. Under Article 254(1), federal law generally overrides state law on Concurrent List items.',
+              explanationHi: 'गलत। अनुच्छेद 254(1) के तहत, संघीय कानून आमतौर पर समवर्ती सूची की वस्तुओं पर राज्य के कानून को खारिज कर देता है।',
+              explanationTa: 'தவறு. பிரிவு 254(1)-ன் கீழ், பொதுப்பட்டியல் விஷயங்களில் பொதுவாக மத்திய சட்டமே மாநில சட்டத்தை விட மேலோங்கும்.'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'The federal law prevails, and the state law is void to the extent of repugnancy.',
+              textHi: 'संघीय कानून लागू होगा, और राज्य का कानून विरोध की सीमा तक शून्य होगा।',
+              textTa: 'மத்திய சட்டமே மேலோங்கும், மாநில சட்டம் முரண்படும் அளவிற்கு செல்லாததாகும்.',
+              points: 40,
+              explanationEn: 'Correct! Under Article 254(1), the law made by Parliament shall prevail, unless the state law received the President\'s assent under Article 254(2).',
+              explanationHi: 'सही! अनुच्छेद 254(1) के तहत, संसद द्वारा बनाया गया कानून लागू होगा, जब तक कि राज्य के कानून को राष्ट्रपति की सहमति न मिल गई हो।',
+              explanationTa: 'சரி! பிரிவு 254(1)-ன் கீழ், நாடாளுமன்றம் இயற்றிய சட்டமே மேலோங்கும், மாநில சட்டம் ஜனாதிபதியின் ஒப்புதலைப் பெற்றிருந்தால் தவிர.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'Both laws are struck down and the subject goes to the Supreme Court for settlement.',
+              textHi: 'दोनों कानूनों को रद्द कर दिया जाता है और विषय निपटारे के लिए सर्वोच्च न्यायालय में जाता है।',
+              textTa: 'இரு சட்டங்களும் ரத்து செய்யப்பட்டு, தீர்வுக்காக விஷயம் உச்ச நீதிமன்றத்திற்குச் செல்லும்.',
+              points: 10,
+              explanationEn: 'Incorrect. The laws are not struck down automatically; the rule of federal supremacy resolves the conflict.',
+              explanationHi: 'गलत। कानून अपने आप रद्द नहीं होते हैं; संघीय सर्वोच्चता का नियम संघर्ष को हल करता है।',
+              explanationTa: 'தவறு. சட்டங்கள் தானாகவே ரத்து செய்யப்படுவதில்லை; கூட்டாட்சி மேலாதிக்க விதி முரண்பாட்டைத் தீர்க்கிறது.'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'expert',
+      titleEn: 'Expert Path (Constitutional Crises)',
+      titleHi: 'विशेषज्ञ पथ (संवैधानिक संकट)',
+      titleTa: 'நிபுணர் பாதை (அரசியலமைப்பு நெருக்கடிகள்)',
+      levelRequired: 7,
+      scenarios: [
+        {
+          id: 'E1',
+          titleEn: 'The Ordinance Loophole',
+          titleHi: 'अध्यादेश का लूपहोल',
+          titleTa: 'அவசரச் சட்டத்தின் ஓட்டை',
+          descriptionEn: 'A state government repromulgates the same emergency Ordinance (temporary law) six times consecutively without ever putting it to vote in the Legislative Assembly. What is the constitutional validity of this ordinance?',
+          descriptionHi: 'एक राज्य सरकार विधानसभा में बिना मतदान कराए लगातार छह बार एक ही आपातकालीन अध्यादेश (अस्थायी कानून) को फिर से लागू करती है। इस अध्यादेश की संवैधानिक वैधता क्या है?',
+          descriptionTa: 'ஒரு மாநில அரசு ஒரே அவசரச் சட்டத்தை சட்டமன்றத்தில் வாக்கெடுப்புக்கு விடாமல் தொடர்ந்து ஆறு முறை மீண்டும் பிறப்பிக்கிறது. இந்த அவசரச் சட்டத்தின் அரசியலமைப்பு செல்லுபடி என்ன?',
+          articleLinked: 'Article 213 & DC Wadhwa Case',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'It is valid, as the governor has absolute power to repromulgate ordinances.',
+              textHi: 'यह मान्य है, क्योंकि राज्यपाल के पास अध्यादेशों को फिर से लागू करने की पूर्ण शक्ति है।',
+              textTa: 'இது செல்லுபடியாகும், ஏனெனில் ஆளுநருக்கு அவசரச் சட்டங்களை மீண்டும் பிறப்பிக்க முழு அதிகாரம் உள்ளது.',
+              points: 10,
+              explanationEn: 'Incorrect. The Governor\'s power is temporary and subject to legislative oversight.',
+              explanationHi: 'गलत। राज्यपाल की शक्ति अस्थायी होती है और विधायी निरीक्षण के अधीन होती है।',
+              explanationTa: 'தவறு. ஆளுநரின் அதிகாரம் தற்காலிகமானது மற்றும் சட்டமன்ற மேற்பார்வைக்கு உட்பட்டது.'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'It is a fraud on the Constitution and void, as ruled in the D.C. Wadhwa case.',
+              textHi: 'यह संविधान पर एक धोखा है और शून्य है, जैसा कि डी.सी. वाधवा मामले में फैसला सुनाया गया था।',
+              textTa: 'இது அரசியலமைப்பிற்கு எதிரான மோசடி மற்றும் செல்லாதது, டி.சி.வாத்வா வழக்கில் தீர்ப்பளிக்கப்பட்டபடி.',
+              points: 40,
+              explanationEn: 'Correct! The Supreme Court held that repeated repromulgation of ordinances without legislative approval is an abuse of executive power and unconstitutional.',
+              explanationHi: 'सही! सर्वोच्च न्यायालय ने माना कि विधायी मंजूरी के बिना अध्यादेशों को बार-बार लागू करना कार्यकारी शक्ति का दुरुपयोग और असंवैधानिक है।',
+              explanationTa: 'சரி! சட்டமன்ற ஒப்புதல் இன்றி அவசரச் சட்டங்களை மீண்டும் மீண்டும் பிறப்பிப்பது நிர்வாக அதிகாரத்தை துஷ்பிரயோகம் செய்வதாகும் மற்றும் அரசியலமைப்பிற்கு முரணானது என்று உச்ச நீதிமன்றம் தீர்ப்பளித்தது.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'It is valid, provided the Chief Minister signs a declaration of emergency.',
+              textHi: 'यह मान्य है, बशर्ते मुख्यमंत्री आपातकाल की घोषणा पर हस्ताक्षर करें।',
+              textTa: 'இது செல்லுபடியாகும், முதலமைச்சர் அவசரநிலைப் பிரகடனத்தில் கையெழுத்திட்டால்.',
+              points: 5,
+              explanationEn: 'Incorrect. There is no such provision to bypass the legislature using executive declarations.',
+              explanationHi: 'गलत। कार्यकारी घोषणाओं का उपयोग करके विधायिका को दरकिनार करने का ऐसा कोई प्रावधान नहीं है।',
+              explanationTa: 'தவறு. நிர்வாகப் பிரகடனங்களைப் பயன்படுத்தி சட்டமன்றத்தைத் தவிர்ப்பதற்கு அத்தகைய வழிவகை இல்லை.'
+            }
+          ]
+        },
+        {
+          id: 'E2',
+          titleEn: 'Basic Structure Challenge',
+          titleHi: 'मूल संरचना की चुनौती',
+          titleTa: 'அடிப்படை கட்டமைப்பு சவால்',
+          descriptionEn: 'Parliament passes a Constitutional Amendment Bill under Article 368 that removes the power of judicial review from the High Courts. Does Parliament have this power?',
+          descriptionHi: 'संसद अनुच्छेद 368 के तहत एक संविधान संशोधन विधेयक पारित करती है जो उच्च न्यायालयों से न्यायिक समीक्षा की शक्ति को हटा देता है। क्या संसद के पास यह शक्ति है?',
+          descriptionTa: 'நாடாளுமன்றம் பிரிவு 368-ன் கீழ் உயர்நீதிமன்றங்களின் நீதித்துறை மறுஆய்வு அதிகாரத்தை நீக்கும் அரசியலமைப்பு திருத்த மசோதாவை நிறைவேற்றுகிறது. நாடாளுமன்றத்திற்கு இந்த அதிகாரம் உள்ளதா?',
+          articleLinked: 'Article 368 & Kesavananda Case',
+          options: [
+            {
+              optionIndex: 0,
+              textEn: 'Yes, Parliament has absolute power to amend any part of the Constitution.',
+              textHi: 'हाँ, संसद के पास संविधान के किसी भी हिस्से में संशोधन करने की पूर्ण शक्ति है।',
+              textTa: 'ஆம், அரசியலமைப்பின் எந்தப் பகுதியையும் திருத்த நாடாளுமன்றத்திற்கு முழு அதிகாரம் உள்ளது.',
+              points: 10,
+              explanationEn: 'Incorrect. Parliament\'s amending power is not absolute and is bounded by the Basic Structure.',
+              explanationHi: 'गलत। संसद की संशोधन शक्ति पूर्ण नहीं है और यह मूल संरचना से बंधी है।',
+              explanationTa: 'தவறு. நாடாளுமன்றத்தின் திருத்த அதிகாரம் முழுமையானது அல்ல, அது அடிப்படை கட்டமைப்பிற்கு உட்பட்டது.'
+            },
+            {
+              optionIndex: 1,
+              textEn: 'No, because judicial review is part of the Basic Structure of the Constitution and cannot be destroyed.',
+              textHi: 'नहीं, क्योंकि न्यायिक समीक्षा संविधान की मूल संरचना का हिस्सा है और इसे नष्ट नहीं किया जा सकता।',
+              textTa: 'இல்லை, ஏனெனில் நீதித்துறை மறுஆய்வு என்பது அரசியலமைப்பின் அடிப்படை கட்டமைப்பின் ஒரு பகுதியாகும், அதை அழிக்க முடியாது.',
+              points: 40,
+              explanationEn: 'Correct! The Kesavananda Bharati precedent holds that Parliament cannot amend the Constitution in a way that alters or destroys its "Basic Structure" (which includes judicial review).',
+              explanationHi: 'सही! केशवानंद भारती मिसाल यह मानती है कि संसद संविधान में इस तरह से संशोधन नहीं कर सकती जो इसकी "मूल संरचना" को बदले या नष्ट करे।',
+              explanationTa: 'சரி! கேசவானந்த பாரதி வழக்கு, நீதித்துறை மறுஆய்வை உள்ளடக்கிய அரசியலமைப்பின் "அடிப்படை கட்டமைப்பை" மாற்றும் அல்லது அழிக்கும் வகையில் நாடாளுமன்றம் திருத்தம் செய்ய முடியாது என்று கூறுகிறது.'
+            },
+            {
+              optionIndex: 2,
+              textEn: 'Yes, but it must be approved by a national referendum of citizens.',
+              textHi: 'हाँ, लेकिन इसे नागरिकों के राष्ट्रीय जनमत संग्रह द्वारा अनुमोदित किया जाना चाहिए।',
+              textTa: 'ஆம், ஆனால் அதற்கு குடிமக்களின் தேசிய பொது வாக்கெடுப்பு ஒப்புதல் அளிக்க வேண்டும்.',
+              points: 10,
+              explanationEn: 'Incorrect. The Indian Constitution does not have a provision for referendums.',
+              explanationHi: 'गलत। भारतीय संविधान में जनमत संग्रह का कोई प्रावधान नहीं है।',
+              explanationTa: 'தவறு. இந்திய அரசியலமைப்பில் பொது வாக்கெடுப்புக்கான வழிவகை இல்லை.'
+            }
+          ]
+        }
+      ]
+    }
+  ];
+
+  for (const path of PATHS_DATA) {
+    // 1. Upsert Path
+    const createdPath = await prisma.simulatorPath.upsert({
+      where: { id: path.id },
+      update: {
+        titleEn: path.titleEn,
+        titleHi: path.titleHi,
+        titleTa: path.titleTa,
+        levelRequired: path.levelRequired
+      },
+      create: {
+        id: path.id,
+        titleEn: path.titleEn,
+        titleHi: path.titleHi,
+        titleTa: path.titleTa,
+        levelRequired: path.levelRequired
+      }
+    });
+
+    for (const scenario of path.scenarios) {
+      // 2. Upsert Scenario
+      const createdScenario = await prisma.simulatorScenario.upsert({
+        where: { id: scenario.id },
+        update: {
+          pathId: createdPath.id,
+          titleEn: scenario.titleEn,
+          titleHi: scenario.titleHi,
+          titleTa: scenario.titleTa,
+          descriptionEn: scenario.descriptionEn,
+          descriptionHi: scenario.descriptionHi,
+          descriptionTa: scenario.descriptionTa,
+          articleLinked: scenario.articleLinked
+        },
+        create: {
+          id: scenario.id,
+          pathId: createdPath.id,
+          titleEn: scenario.titleEn,
+          titleHi: scenario.titleHi,
+          titleTa: scenario.titleTa,
+          descriptionEn: scenario.descriptionEn,
+          descriptionHi: scenario.descriptionHi,
+          descriptionTa: scenario.descriptionTa,
+          articleLinked: scenario.articleLinked
+        }
+      });
+
+      for (const opt of scenario.options) {
+        // 3. Upsert Option
+        await prisma.simulatorOption.upsert({
+          where: {
+            scenarioId_optionIndex: {
+              scenarioId: createdScenario.id,
+              optionIndex: opt.optionIndex
+            }
+          },
+          update: {
+            textEn: opt.textEn,
+            textHi: opt.textHi,
+            textTa: opt.textTa,
+            points: opt.points,
+            explanationEn: opt.explanationEn,
+            explanationHi: opt.explanationHi,
+            explanationTa: opt.explanationTa
+          },
+          create: {
+            scenarioId: createdScenario.id,
+            optionIndex: opt.optionIndex,
+            textEn: opt.textEn,
+            textHi: opt.textHi,
+            textTa: opt.textTa,
+            points: opt.points,
+            explanationEn: opt.explanationEn,
+            explanationHi: opt.explanationHi,
+            explanationTa: opt.explanationTa
+          }
+        });
+      }
+    }
+  }
+}
