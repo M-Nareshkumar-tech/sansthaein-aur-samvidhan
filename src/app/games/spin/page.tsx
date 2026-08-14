@@ -175,7 +175,7 @@ export default function SpinGame() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         {/* Left Side: The Wheel Rendering (7 cols) */}
         <div className="lg:col-span-6 flex flex-col items-center justify-center space-y-6">
-          <div className="relative w-80 h-80 sm:w-96 sm:h-96">
+          <div className="relative w-[260px] h-[260px] min-[360px]:w-[300px] min-[360px]:h-[300px] sm:w-80 sm:h-80 md:w-96 md:h-96 max-w-full aspect-square">
             
             {/* The Pointer (Top center) */}
             <div className="absolute top-[-10px] left-1/2 transform -translate-x-1/2 z-20 drop-shadow-[0_4px_10px_rgba(255,153,51,0.5)]">

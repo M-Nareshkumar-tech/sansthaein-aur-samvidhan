@@ -35,7 +35,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto my-8 p-8 bg-card border border-white/10 rounded-2xl shadow-xl space-y-6">
+    <div className="max-w-md mx-auto my-6 sm:my-8 p-5 sm:p-8 bg-card border border-white/10 rounded-2xl shadow-xl space-y-6">
       <div className="text-center space-y-2">
         <div className="inline-flex p-3 bg-saffron/10 border border-saffron/20 rounded-xl text-saffron">
           <UserIcon className="h-6 w-6" />
@@ -64,7 +64,7 @@ export default function RegisterPage() {
               required
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-base sm:text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
               placeholder="e.g. Rahul Sharma"
             />
           </div>
@@ -82,7 +82,7 @@ export default function RegisterPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-base sm:text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
               placeholder="e.g. rahul@example.com"
             />
           </div>
@@ -100,7 +100,7 @@ export default function RegisterPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-base sm:text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
               placeholder="Min 6 characters"
               minLength={6}
             />
@@ -115,7 +115,7 @@ export default function RegisterPage() {
             id="role"
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all cursor-pointer font-sans"
+            className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-4 text-white text-base sm:text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all cursor-pointer font-sans"
           >
             <option value="CITIZEN">General Citizen (Interactive explorer & games)</option>
             <option value="STUDENT">School/College Student (Gamified quest path)</option>

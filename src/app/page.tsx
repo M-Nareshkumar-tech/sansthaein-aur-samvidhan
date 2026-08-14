@@ -212,12 +212,12 @@ export default function Dashboard() {
           </div>
           
           {/* Organ Filter controls */}
-          <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10 w-fit">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2 p-1 rounded-xl bg-white/5 border border-white/10 max-w-full overflow-x-auto">
             {(['All', 'Legislature', 'Executive', 'Judiciary'] as const).map((org) => (
               <button
                 key={org}
                 onClick={() => setSelectedOrgan(org)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                   selectedOrgan === org 
                     ? 'bg-saffron text-white shadow-sm' 
                     : 'text-slate-400 hover:text-white'
