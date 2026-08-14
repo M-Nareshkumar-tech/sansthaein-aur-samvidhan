@@ -31,7 +31,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto my-12 p-8 bg-card border border-white/10 rounded-2xl shadow-xl space-y-6">
+    <div className="max-w-md mx-auto my-6 sm:my-12 p-5 sm:p-8 bg-card border border-white/10 rounded-2xl shadow-xl space-y-6">
       <div className="text-center space-y-2">
         <div className="inline-flex p-3 bg-saffron/10 border border-saffron/20 rounded-xl text-saffron">
           <ShieldCheck className="h-6 w-6" />
@@ -60,7 +60,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-base sm:text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
               placeholder="e.g. citizen@india.gov.in"
             />
           </div>
@@ -78,7 +78,7 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white text-base sm:text-sm focus:border-saffron focus:ring-1 focus:ring-saffron outline-none transition-all font-sans"
               placeholder="••••••••"
             />
           </div>

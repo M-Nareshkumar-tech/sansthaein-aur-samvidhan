@@ -69,7 +69,7 @@ export default function Navbar() {
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="text-md md:text-lg font-extrabold tracking-tight bg-gradient-to-r from-saffron via-white to-green bg-clip-text text-transparent">
+                <span className="text-sm min-[360px]:text-md md:text-lg font-extrabold tracking-tight bg-gradient-to-r from-saffron via-white to-green bg-clip-text text-transparent truncate max-w-[130px] min-[360px]:max-w-[190px] sm:max-w-none">
                   {t('app_name')}
                 </span>
                 <span className="text-[10px] text-slate-400 -mt-1 font-medium hidden sm:block">

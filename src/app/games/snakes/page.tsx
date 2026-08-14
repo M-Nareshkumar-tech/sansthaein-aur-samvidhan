@@ -390,10 +390,10 @@ export default function SnakesGame() {
 
                 if (isLadder) {
                   overlayStyle = "border border-green/30 bg-green/5";
-                  tileIcon = <span className="text-[10px] font-bold text-green absolute bottom-0.5 right-1">🪜 L{LADDERS[cellNum].target}</span>;
+                  tileIcon = <span className="text-[7px] sm:text-[10px] font-bold text-green absolute bottom-0.5 right-0.5 leading-none">🪜 L{LADDERS[cellNum].target}</span>;
                 } else if (isSnake) {
                   overlayStyle = "border border-red-500/30 bg-red-500/5";
-                  tileIcon = <span className="text-[10px] font-bold text-red-400 absolute bottom-0.5 right-1">🐍 S{SNAKES[cellNum].target}</span>;
+                  tileIcon = <span className="text-[7px] sm:text-[10px] font-bold text-red-400 absolute bottom-0.5 right-0.5 leading-none">🐍 S{SNAKES[cellNum].target}</span>;
                 }
 
                 // Check for reverse targets (ladder tops & snake tails) to render markers
@@ -401,15 +401,15 @@ export default function SnakesGame() {
                 const isSnakeTail = Object.values(SNAKES).some(s => s.target === cellNum);
                 
                 if (isLadderTop) {
-                  tileIcon = <span className="text-[8px] text-green/60 absolute bottom-0.5 right-1">▲ Top</span>;
+                  tileIcon = <span className="text-[6px] sm:text-[8px] text-green/60 absolute bottom-0.5 right-0.5 leading-none">▲ Top</span>;
                 } else if (isSnakeTail) {
-                  tileIcon = <span className="text-[8px] text-red-400/50 absolute bottom-0.5 right-1">▼ Tail</span>;
+                  tileIcon = <span className="text-[6px] sm:text-[8px] text-red-400/50 absolute bottom-0.5 right-0.5 leading-none">▼ Tail</span>;
                 }
 
                 return (
                   <div 
                     key={cellNum} 
-                    className={`relative rounded flex items-center justify-center text-[10px] font-extrabold text-slate-500 transition-all ${tileBg} ${overlayStyle}`}
+                    className={`relative rounded flex items-center justify-center text-[8px] sm:text-[10px] font-extrabold text-slate-500 transition-all ${tileBg} ${overlayStyle}`}
                   >
                     <span>{cellNum}</span>
                     {tileIcon}
@@ -417,8 +417,8 @@ export default function SnakesGame() {
                     {/* Player Token */}
                     {isPlayerHere && (
                       <div className="absolute inset-0 flex items-center justify-center z-10 animate-pulse">
-                        <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-saffron to-green border-2 border-white flex items-center justify-center shadow-lg transform -translate-y-0.5">
-                          <span className="text-[8px] text-white font-extrabold">YOU</span>
+                        <div className="h-4 w-4 sm:h-6 sm:w-6 rounded-full bg-gradient-to-tr from-saffron to-green border border-white flex items-center justify-center shadow-lg transform -translate-y-0.5">
+                          <span className="text-[6px] sm:text-[8px] text-white font-extrabold">YOU</span>
                         </div>
                       </div>
                     )}
@@ -479,7 +479,7 @@ export default function SnakesGame() {
       {/* Popup Dialog for Snakes & Ladders quiz */}
       {activeEvent && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg glass-card p-6 rounded-3xl space-y-6 relative overflow-hidden animate-scaleIn">
+          <div className="w-full max-w-lg glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 sm:space-y-6 relative overflow-y-auto max-h-[85vh] animate-scaleIn">
             
             {/* Header branding */}
             <div className="flex items-center gap-3 border-b border-white/10 pb-3">
@@ -572,7 +572,7 @@ export default function SnakesGame() {
       {/* Game Over Dialog */}
       {isGameOver && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md glass-card p-8 rounded-3xl text-center space-y-6 animate-scaleIn">
+          <div className="w-full max-w-md glass-card p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center space-y-4 sm:space-y-6 animate-scaleIn max-h-[85vh] overflow-y-auto">
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-saffron to-green border border-white/20 mx-auto shadow-lg animate-bounce">
               <Trophy className="h-8 w-8 text-white" />
             </div>

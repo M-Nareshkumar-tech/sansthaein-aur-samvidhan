@@ -286,7 +286,7 @@ export default function ArticleExplorer() {
               </div>
 
               {/* Tabs list */}
-              <div className="flex border-b border-white/10 pt-2">
+              <div className="flex border-b border-white/10 pt-2 overflow-x-auto no-scrollbar gap-1 sm:gap-0 max-w-full">
                 {[
                   { id: 'simplified', label: t('simplified') },
                   { id: 'child_friendly', label: t('child_friendly') },
@@ -295,7 +295,7 @@ export default function ArticleExplorer() {
                   <button
                     key={tab.id}
                     onClick={() => { stop(); setActiveTab(tab.id as any); }}
-                    className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                    className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       activeTab === tab.id
                         ? 'border-saffron text-saffron bg-saffron/5'
                         : 'border-transparent text-slate-400 hover:text-white hover:bg-white/5'

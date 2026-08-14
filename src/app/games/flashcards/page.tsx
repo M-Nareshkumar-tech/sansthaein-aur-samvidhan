@@ -319,10 +319,10 @@ export default function FlashcardsGame() {
         </div>
 
         {/* Card Navigation */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap gap-2.5 justify-between items-center">
           <button 
             onClick={handlePrev}
-            className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-white cursor-pointer"
+            className="flex items-center gap-1 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-white cursor-pointer order-1"
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
@@ -331,7 +331,7 @@ export default function FlashcardsGame() {
           {!triviaStarted && (
             <button
               onClick={() => setTriviaStarted(true)}
-              className="px-6 py-2 rounded-xl text-xs font-bold btn-saffron text-white cursor-pointer"
+              className="px-5 sm:px-6 py-2 rounded-xl text-xs font-bold btn-saffron text-white cursor-pointer order-3 sm:order-2 w-full sm:w-auto text-center"
             >
               Take Trivia Duel
             </button>
@@ -339,7 +339,7 @@ export default function FlashcardsGame() {
 
           <button 
             onClick={handleNext}
-            className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-white cursor-pointer"
+            className="flex items-center gap-1 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 text-white cursor-pointer order-2 sm:order-3"
           >
             Next
             <ChevronRight className="h-4 w-4" />

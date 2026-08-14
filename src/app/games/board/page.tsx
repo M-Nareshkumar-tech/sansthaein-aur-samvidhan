@@ -524,8 +524,8 @@ export default function BoardGame() {
                     {/* Player Token representation */}
                     {isPlayerHere && (
                       <div className="absolute inset-0 flex items-center justify-center bg-saffron/10 rounded-xl">
-                        <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-saffron to-green border-2 border-white flex items-center justify-center shadow-lg animate-bounce">
-                          <span className="text-[8px] text-white font-extrabold">YOU</span>
+                        <div className="h-5 w-5 sm:h-7 sm:w-7 rounded-full bg-gradient-to-tr from-saffron to-green border sm:border-2 border-white flex items-center justify-center shadow-lg animate-bounce">
+                          <span className="text-[6px] sm:text-[8px] text-white font-extrabold">YOU</span>
                         </div>
                       </div>
                     )}
@@ -618,7 +618,7 @@ export default function BoardGame() {
       {/* Challenge Card Popup Dialog */}
       {activeSpace && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg glass-card p-6 rounded-3xl space-y-6 relative overflow-hidden animate-scaleIn">
+          <div className="w-full max-w-lg glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 sm:space-y-6 relative overflow-y-auto max-h-[85vh] animate-scaleIn">
             
             <div className="flex items-center gap-3 border-b border-white/10 pb-3">
               <div className="p-2.5 rounded-xl bg-saffron/20 text-saffron">
@@ -709,7 +709,7 @@ export default function BoardGame() {
       {/* Game Over Dialog */}
       {isGameOver && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md glass-card p-8 rounded-3xl text-center space-y-6 animate-scaleIn">
+          <div className="w-full max-w-md glass-card p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center space-y-4 sm:space-y-6 animate-scaleIn max-h-[85vh] overflow-y-auto">
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-saffron to-green border border-white/20 mx-auto shadow-lg">
               <ShieldCheck className="h-8 w-8 text-white animate-bounce" />
             </div>
